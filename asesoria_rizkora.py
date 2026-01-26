@@ -1149,7 +1149,7 @@ elif st.session_state.step == 6:
             if st.form_submit_button("⬅️ Anterior", use_container_width=True):
                 navegar_a_paso(5)
         with col2:
-            submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True):
+            submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
         
         if submitted:
             if ingreso_mensual_retiro <= 0:
@@ -1628,3 +1628,4 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
