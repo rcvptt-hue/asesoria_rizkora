@@ -653,7 +653,33 @@ st.title("🎯 Asesoría Financiera Integral Rizkora")
 if st.session_state.step == 1:
     st.header("1️⃣ Datos Generales")
     
+    # Campos fuera del formulario para mostrar edad en tiempo real
+    col1_pre, col2_pre = st.columns(2)
+    
+    with col1_pre:
+        st.write("**Información Básica**")
+    
+    with col2_pre:
+        # Selector de fecha de nacimiento FUERA del formulario
+        fecha_nacimiento_temp = st.date_input(
+            "Fecha de nacimiento* (Vista previa)",
+            value=st.session_state.datos['datos_generales'].get('fecha_nacimiento', date.today()),
+            min_value=date(1920, 1, 1),
+            max_value=date.today(),
+            key="fecha_nac_preview"
+        )
+        
+        # Mostrar edad calculada en tiempo real
+        if fecha_nacimiento_temp:
+            edad_calculada = calcular_edad(fecha_nacimiento_temp)
+            if edad_calculada:
+                st.success(f"✅ Edad calculada: **{edad_calculada} años**")
+    
+    st.markdown("---")
+    
     with st.form("form_datos_generales"):
+        st.subheader("Completa el formulario")
+        
         col1, col2 = st.columns(2)
         
         with col1:
@@ -674,10 +700,12 @@ if st.session_state.step == 1:
                                        index=["", "Soltero", "Casado", "Unión libre", "Divorciado", "Viudo"].index(
                                            st.session_state.datos['datos_generales'].get('estado_civil', '')))
             
-            fecha_nacimiento = st.date_input("Fecha de nacimiento*",
-                                            value=st.session_state.datos['datos_generales'].get('fecha_nacimiento', date.today()),
+            # Fecha de nacimiento dentro del formulario (oculta pero captura el valor)
+            fecha_nacimiento = st.date_input("Fecha de nacimiento* (confirmar)",
+                                            value=fecha_nacimiento_temp,
                                             min_value=date(1920, 1, 1),
-                                            max_value=date.today())
+                                            max_value=date.today(),
+                                            help="Esta fecha se sincroniza con la selección de arriba")
             
             fumador = st.radio("¿Ha fumado en los últimos 2 años?*", 
                               ["Sí", "No"],
@@ -694,13 +722,6 @@ if st.session_state.step == 1:
         with col4:
             fecha_asesoria = st.date_input("Fecha de asesoría*",
                                           value=st.session_state.datos['datos_generales'].get('fecha_asesoria', date.today()))
-        
-        # Mostrar edad calculada en tiempo real
-        edad_calculada = None
-        if fecha_nacimiento:
-            edad_calculada = calcular_edad(fecha_nacimiento)
-            if edad_calculada:
-                st.success(f"✅ Edad calculada: **{edad_calculada} años**")
         
         submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
         
@@ -1698,4 +1719,3 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
-
