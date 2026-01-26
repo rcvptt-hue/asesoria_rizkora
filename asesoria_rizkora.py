@@ -12,6 +12,17 @@ from datetime import datetime, date
 import json
 from io import BytesIO
 import warnings
+import gspread
+from google.oauth2.service_account import Credentials
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors as pdf_colors
+import tempfile
 warnings.filterwarnings('ignore')
 
 # ================================
@@ -50,6 +61,97 @@ if 'datos' not in st.session_state:
         'educacion': {},
         'cierre': {}
     }
+
+if 'google_sheets_habilitado' not in st.session_state:
+    st.session_state.google_sheets_habilitado = False
+
+# ================================
+# CONFIGURACIÓN GOOGLE SHEETS
+# ================================
+@st.cache_resource
+def init_google_sheets():
+    """Inicializa conexión con Google Sheets"""
+    try:
+        if 'google_service_account' not in st.secrets:
+            return None
+        
+        creds = Credentials.from_service_account_info(
+            st.secrets["google_service_account"],
+            scopes=[
+                "https://www.googleapis.com/auth/spreadsheets",
+                "https://www.googleapis.com/auth/drive"
+            ]
+        )
+        
+        client = gspread.authorize(creds)
+        st.session_state.google_sheets_habilitado = True
+        return client
+    except Exception as e:
+        st.session_state.google_sheets_habilitado = False
+        return None
+
+def guardar_asesoria_sheets(datos_completos):
+    """Guarda la asesoría en Google Sheets"""
+    try:
+        client = init_google_sheets()
+        if not client:
+            return False, "No se pudo conectar con Google Sheets"
+        
+        # Abrir o crear spreadsheet
+        try:
+            spreadsheet = client.open("asesorias_rizkora")
+        except:
+            spreadsheet = client.create("asesorias_rizkora")
+            spreadsheet.share('', perm_type='anyone', role='reader')
+        
+        # Preparar datos para la hoja
+        datos_gen = datos_completos['datos_generales']
+        necesidades = detectar_necesidades()
+        
+        fila_nueva = {
+            'Fecha Asesoría': str(datos_gen.get('fecha_asesoria', '')),
+            'Hora Registro': datetime.now().strftime("%H:%M:%S"),
+            'Agente': datos_gen.get('nombre_agente', ''),
+            'Cliente': datos_gen.get('nombre', ''),
+            'Edad': datos_gen.get('edad', ''),
+            'Teléfono': datos_gen.get('telefono', ''),
+            'Correo': datos_gen.get('correo', ''),
+            'Ocupación': datos_gen.get('ocupacion', ''),
+            'Estado Civil': datos_gen.get('estado_civil', ''),
+            'Fumador': datos_gen.get('fumador', ''),
+            'Tipo Cita': datos_gen.get('tipo_cita', ''),
+            'Ingreso Mensual': datos_completos['ingresos'].get('ingreso_mensual', 0),
+            'Inversión Mensual Disponible': datos_completos['ingresos'].get('inversion_mensual', 0),
+            'Necesidad Principal': necesidades['principal'].upper(),
+            'Monto Protección': necesidades['montos']['proteccion'],
+            'Monto Retiro': necesidades['montos']['retiro'],
+            'Monto Educación': necesidades['montos']['educacion'],
+            'Monto Ahorro/Proyecto': necesidades['montos']['ahorro'],
+            'Tiene Pareja': datos_completos['perfil_familiar'].get('tiene_pareja', 'No'),
+            'Tiene Hijos': datos_completos['perfil_familiar'].get('tiene_hijos', 'No'),
+            'Num Hijos': datos_completos['perfil_familiar'].get('num_hijos', 0),
+            'Segunda Cita': datos_completos['cierre'].get('segunda_cita', 'No'),
+            'Fecha Segunda Cita': str(datos_completos['cierre'].get('fecha_segunda_cita', '')),
+            'Num Referidos': datos_completos['cierre'].get('num_referidos', 0),
+            'Satisfacción': datos_completos['cierre'].get('satisfaccion', '')
+        }
+        
+        # Obtener o crear worksheet
+        try:
+            worksheet = spreadsheet.worksheet("Asesorías")
+        except:
+            worksheet = spreadsheet.add_worksheet(title="Asesorías", rows=1000, cols=25)
+            # Agregar encabezados
+            headers = list(fila_nueva.keys())
+            worksheet.update('A1', [headers])
+        
+        # Agregar nueva fila
+        worksheet.append_row(list(fila_nueva.values()), value_input_option='USER_ENTERED')
+        
+        return True, "Asesoría guardada exitosamente en Google Sheets"
+    
+    except Exception as e:
+        return False, f"Error al guardar: {str(e)}"
 
 # ================================
 # FUNCIONES AUXILIARES
@@ -100,6 +202,300 @@ def exportar_json():
         'necesidades_detectadas': detectar_necesidades()
     }
     return json.dumps(datos_export, indent=2, ensure_ascii=False)
+
+def generar_pdf_asesoria():
+    """Genera PDF con el resumen de la asesoría"""
+    try:
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=72)
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=pdf_colors.HexColor(COLORES['azul_principal']),
+            spaceAfter=30,
+            alignment=1
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=pdf_colors.HexColor(COLORES['verde_oscuro']),
+            spaceAfter=15
+        )
+        
+        story = []
+        
+        # Título
+        story.append(Paragraph("REPORTE DE ASESORÍA FINANCIERA", title_style))
+        story.append(Paragraph("Rizkora - Detección de Necesidades", styles['Normal']))
+        story.append(Spacer(1, 20))
+        
+        # Datos del cliente
+        story.append(Paragraph("INFORMACIÓN DEL CLIENTE", subtitle_style))
+        datos_gen = st.session_state.datos['datos_generales']
+        
+        cliente_data = [
+            ["Nombre:", datos_gen.get('nombre', '')],
+            ["Edad:", f"{datos_gen.get('edad', '')} años"],
+            ["Teléfono:", datos_gen.get('telefono', '')],
+            ["Correo:", datos_gen.get('correo', '')],
+            ["Ocupación:", datos_gen.get('ocupacion', '')],
+            ["Estado Civil:", datos_gen.get('estado_civil', '')],
+            ["Fumador:", datos_gen.get('fumador', '')],
+            ["Tipo de Cita:", datos_gen.get('tipo_cita', '')],
+            ["Agente:", datos_gen.get('nombre_agente', '')],
+            ["Fecha Asesoría:", str(datos_gen.get('fecha_asesoria', ''))]
+        ]
+        
+        cliente_table = Table(cliente_data, colWidths=[2*inch, 4*inch])
+        cliente_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), pdf_colors.HexColor(COLORES['azul_claro'])),
+            ('TEXTCOLOR', (0, 0), (0, -1), pdf_colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, pdf_colors.grey)
+        ]))
+        
+        story.append(cliente_table)
+        story.append(Spacer(1, 20))
+        
+        # Perfil Familiar
+        story.append(Paragraph("PERFIL FAMILIAR", subtitle_style))
+        perfil = st.session_state.datos['perfil_familiar']
+        
+        perfil_info = [
+            ["Tiene Pareja:", perfil.get('tiene_pareja', 'No')],
+            ["Tiene Hijos:", perfil.get('tiene_hijos', 'No')],
+            ["Número de Hijos:", str(perfil.get('num_hijos', 0))],
+            ["Otros Dependientes:", perfil.get('tiene_dependientes', 'No')]
+        ]
+        
+        perfil_table = Table(perfil_info, colWidths=[2*inch, 4*inch])
+        perfil_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), pdf_colors.HexColor(COLORES['verde_agua'])),
+            ('TEXTCOLOR', (0, 0), (0, -1), pdf_colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, pdf_colors.grey)
+        ]))
+        
+        story.append(perfil_table)
+        story.append(Spacer(1, 20))
+        
+        # Información Financiera
+        story.append(Paragraph("INFORMACIÓN FINANCIERA", subtitle_style))
+        ingresos = st.session_state.datos['ingresos']
+        
+        finanzas_info = [
+            ["Ingreso Mensual:", formatear_moneda(ingresos.get('ingreso_mensual', 0))],
+            ["Ingreso Anual:", formatear_moneda(ingresos.get('ingreso_anual', 0))],
+            ["Inversión Mensual Disponible:", formatear_moneda(ingresos.get('inversion_mensual', 0))],
+            ["Ahorro Ideal 10%:", formatear_moneda(ingresos.get('ahorro_ideal_10', 0))],
+            ["Ahorro Conservador 7%:", formatear_moneda(ingresos.get('ahorro_conservador_7', 0))]
+        ]
+        
+        finanzas_table = Table(finanzas_info, colWidths=[2.5*inch, 3.5*inch])
+        finanzas_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), pdf_colors.HexColor(COLORES['azul_principal'])),
+            ('TEXTCOLOR', (0, 0), (0, -1), pdf_colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('GRID', (0, 0), (-1, -1), 1, pdf_colors.grey)
+        ]))
+        
+        story.append(finanzas_table)
+        story.append(Spacer(1, 20))
+        
+        # Nueva página para necesidades
+        story.append(PageBreak())
+        
+        # Necesidades Detectadas
+        story.append(Paragraph("NECESIDADES DETECTADAS", subtitle_style))
+        necesidades = detectar_necesidades()
+        
+        story.append(Paragraph(f"<b>Necesidad Principal:</b> {necesidades['principal'].upper()}", styles['Normal']))
+        story.append(Spacer(1, 10))
+        
+        necesidades_data = [
+            ["Categoría", "Monto Estimado", "Prioridad"],
+            ["Protección", formatear_moneda(necesidades['montos']['proteccion']), "#1" if necesidades['prioridades'][0][0] == 'proteccion' else "#2+" if necesidades['montos']['proteccion'] > 0 else "-"],
+            ["Retiro", formatear_moneda(necesidades['montos']['retiro']), "#1" if necesidades['prioridades'][0][0] == 'retiro' else "#2+" if necesidades['montos']['retiro'] > 0 else "-"],
+            ["Educación", formatear_moneda(necesidades['montos']['educacion']), "#1" if necesidades['prioridades'][0][0] == 'educacion' else "#2+" if necesidades['montos']['educacion'] > 0 else "-"],
+            ["Ahorro/Proyecto", formatear_moneda(necesidades['montos']['ahorro']), "#1" if necesidades['prioridades'][0][0] == 'ahorro' else "#2+" if necesidades['montos']['ahorro'] > 0 else "-"]
+        ]
+        
+        necesidades_table = Table(necesidades_data, colWidths=[2*inch, 2.5*inch, 1.5*inch])
+        necesidades_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['verde_oscuro'])),
+            ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 1, pdf_colors.grey),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [pdf_colors.white, pdf_colors.lightgrey])
+        ]))
+        
+        story.append(necesidades_table)
+        story.append(Spacer(1, 20))
+        
+        # Detalles por pilar
+        story.append(Paragraph("DETALLES POR PILAR FINANCIERO", subtitle_style))
+        
+        # Protección
+        if st.session_state.datos['proteccion'].get('aplica'):
+            story.append(Paragraph("<b>🛡️ PROTECCIÓN</b>", styles['Normal']))
+            proteccion = st.session_state.datos['proteccion']
+            story.append(Paragraph(f"Presupuesto Mensual Familiar: {formatear_moneda(proteccion.get('presupuesto_mensual', 0))}", styles['Normal']))
+            story.append(Paragraph(f"Monto de Protección Sugerido: {formatear_moneda(proteccion.get('monto_proteccion_sugerido', 0))}", styles['Normal']))
+            story.append(Spacer(1, 10))
+        
+        # Retiro
+        retiro = st.session_state.datos['retiro']
+        if retiro.get('ingreso_mensual_retiro', 0) > 0:
+            story.append(Paragraph("<b>👴 RETIRO</b>", styles['Normal']))
+            story.append(Paragraph(f"Edad de Retiro Deseada: {retiro.get('edad_retiro', '')} años", styles['Normal']))
+            story.append(Paragraph(f"Ingreso Mensual Deseado: {formatear_moneda(retiro.get('ingreso_mensual_retiro', 0))}", styles['Normal']))
+            story.append(Paragraph(f"Monto Total Requerido: {formatear_moneda(retiro.get('monto_total_retiro', 0))}", styles['Normal']))
+            story.append(Paragraph(f"Ahorro Mensual Sugerido: {formatear_moneda(retiro.get('ahorro_mensual_sugerido', 0))}", styles['Normal']))
+            story.append(Spacer(1, 10))
+        
+        # Educación
+        if st.session_state.datos['educacion'].get('aplica'):
+            story.append(Paragraph("<b>🎓 EDUCACIÓN</b>", styles['Normal']))
+            educacion = st.session_state.datos['educacion']
+            story.append(Paragraph(f"Monto Total para Educación: {formatear_moneda(educacion.get('monto_total_educacion', 0))}", styles['Normal']))
+            story.append(Paragraph(f"Ahorro Mensual Total: {formatear_moneda(educacion.get('ahorro_mensual_total', 0))}", styles['Normal']))
+            story.append(Spacer(1, 10))
+        
+        # Proyecto
+        if st.session_state.datos['ahorro'].get('tiene_proyecto') == "Sí":
+            story.append(Paragraph("<b>💰 PROYECTO</b>", styles['Normal']))
+            ahorro = st.session_state.datos['ahorro']
+            story.append(Paragraph(f"Proyecto: {ahorro.get('descripcion', '')}", styles['Normal']))
+            story.append(Paragraph(f"Costo: {formatear_moneda(ahorro.get('costo', 0))}", styles['Normal']))
+            story.append(Paragraph(f"Ahorro Mensual Sugerido: {formatear_moneda(ahorro.get('ahorro_mensual_sugerido', 0))}", styles['Normal']))
+            story.append(Spacer(1, 10))
+        
+        # Recomendaciones
+        story.append(PageBreak())
+        story.append(Paragraph("RECOMENDACIONES", subtitle_style))
+        
+        recomendaciones = []
+        if necesidades['montos']['proteccion'] > 0:
+            recomendaciones.append(f"• Protección: Considerar seguro de vida por {formatear_moneda(necesidades['montos']['proteccion'])}")
+        if necesidades['montos']['retiro'] > 0:
+            recomendaciones.append(f"• Retiro: Plan de ahorro con {formatear_moneda(retiro.get('ahorro_mensual_sugerido', 0))} mensuales")
+        if necesidades['montos']['educacion'] > 0:
+            recomendaciones.append(f"• Educación: Inversión de {formatear_moneda(st.session_state.datos['educacion'].get('ahorro_mensual_total', 0))} mensuales")
+        if necesidades['montos']['ahorro'] > 0:
+            recomendaciones.append(f"• Proyecto: Ahorro de {formatear_moneda(st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0))} mensuales")
+        
+        for rec in recomendaciones:
+            story.append(Paragraph(rec, styles['Normal']))
+            story.append(Spacer(1, 5))
+        
+        # Footer
+        story.append(Spacer(1, 30))
+        footer = Paragraph(
+            f"Reporte generado: {datetime.now().strftime('%d/%m/%Y %H:%M')} | Asesoría Financiera Rizkora",
+            ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=pdf_colors.grey, alignment=1)
+        )
+        story.append(footer)
+        
+        # Construir PDF
+        doc.build(story)
+        buffer.seek(0)
+        
+        return buffer
+    
+    except Exception as e:
+        st.error(f"Error al generar PDF: {str(e)}")
+        return None
+
+def generar_graficos_necesidades():
+    """Genera gráficos de distribución de necesidades"""
+    try:
+        necesidades = detectar_necesidades()
+        
+        # Filtrar solo necesidades con monto > 0
+        labels = []
+        valores = []
+        colores = []
+        
+        color_map = {
+            'proteccion': COLORES['azul_principal'],
+            'retiro': COLORES['verde_oscuro'],
+            'educacion': COLORES['verde_agua'],
+            'ahorro': COLORES['amarillo']
+        }
+        
+        nombre_map = {
+            'proteccion': 'Protección',
+            'retiro': 'Retiro',
+            'educacion': 'Educación',
+            'ahorro': 'Ahorro/Proyecto'
+        }
+        
+        for key, valor in necesidades['montos'].items():
+            if valor > 0:
+                labels.append(nombre_map[key])
+                valores.append(valor)
+                colores.append(color_map[key])
+        
+        if not valores:
+            return None
+        
+        # Crear gráfico de pastel
+        fig, ax = plt.subplots(figsize=(10, 6))
+        wedges, texts, autotexts = ax.pie(
+            valores,
+            labels=labels,
+            colors=colores,
+            autopct='%1.1f%%',
+            startangle=90,
+            textprops={'fontsize': 11, 'weight': 'bold'}
+        )
+        
+        ax.set_title('Distribución de Necesidades Financieras', 
+                    fontsize=14, 
+                    fontweight='bold',
+                    color=COLORES['azul_principal'],
+                    pad=20)
+        
+        # Mejorar estilo
+        for autotext in autotexts:
+            autotext.set_color('white')
+            autotext.set_fontsize(10)
+            autotext.set_weight('bold')
+        
+        plt.tight_layout()
+        
+        # Guardar en buffer
+        buffer = BytesIO()
+        plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+        buffer.seek(0)
+        plt.close(fig)
+        
+        return buffer
+        
+    except Exception as e:
+        st.error(f"Error al generar gráfico: {str(e)}")
+        return None
 
 def detectar_necesidades():
     """Detecta y prioriza necesidades financieras"""
@@ -177,15 +573,43 @@ with st.sidebar:
     # Botón de exportar (solo si completó al menos paso 8)
     if st.session_state.step >= 8:
         st.markdown("---")
-        st.subheader("Exportar")
-        if st.button("💾 Descargar JSON", use_container_width=True):
+        st.subheader("💾 Exportar")
+        
+        # JSON
+        if st.button("📥 Descargar JSON", use_container_width=True):
             json_data = exportar_json()
             st.download_button(
-                label="📥 Descargar Asesoría",
+                label="📄 Descargar JSON",
                 data=json_data,
                 file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente')}_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json"
+                mime="application/json",
+                use_container_width=True
             )
+        
+        # PDF
+        if st.button("📑 Generar PDF", use_container_width=True):
+            with st.spinner("Generando PDF..."):
+                pdf_buffer = generar_pdf_asesoria()
+                if pdf_buffer:
+                    st.download_button(
+                        label="📥 Descargar PDF",
+                        data=pdf_buffer,
+                        file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+        
+        # Google Sheets
+        if st.session_state.google_sheets_habilitado:
+            if st.button("☁️ Guardar en Sheets", use_container_width=True):
+                with st.spinner("Guardando en Google Sheets..."):
+                    exito, mensaje = guardar_asesoria_sheets(st.session_state.datos)
+                    if exito:
+                        st.success(mensaje)
+                    else:
+                        st.error(mensaje)
+        else:
+            st.info("ℹ️ Google Sheets no configurado")
 
 # ================================
 # CONTENIDO PRINCIPAL
@@ -1122,11 +1546,25 @@ elif st.session_state.step == 9:
                 st.success("✅ ¡Asesoría completada exitosamente!")
                 st.balloons()
                 
+                # Guardar automáticamente en Google Sheets si está habilitado
+                if st.session_state.google_sheets_habilitado:
+                    with st.spinner("Guardando en Google Sheets..."):
+                        exito, mensaje = guardar_asesoria_sheets(st.session_state.datos)
+                        if exito:
+                            st.success(f"☁️ {mensaje}")
+                        else:
+                            st.warning(f"⚠️ {mensaje}")
+                
                 # Mostrar resumen final
                 st.markdown("---")
                 st.subheader("📊 Resumen Final")
                 
                 necesidades = detectar_necesidades()
+                
+                # Mostrar gráfico
+                grafico_buffer = generar_graficos_necesidades()
+                if grafico_buffer:
+                    st.image(grafico_buffer, use_container_width=True)
                 
                 st.write(f"""
                 **Cliente:** {st.session_state.datos['datos_generales'].get('nombre')}
@@ -1142,16 +1580,42 @@ elif st.session_state.step == 9:
                 **Fecha:** {st.session_state.datos['datos_generales'].get('fecha_asesoria')}
                 """)
                 
-                # Botón de exportar
+                # Botones de exportar
                 st.markdown("---")
-                json_data = exportar_json()
-                st.download_button(
-                    label="📥 Descargar Asesoría Completa (JSON)",
-                    data=json_data,
-                    file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
-                    mime="application/json",
-                    use_container_width=True
-                )
+                st.subheader("💾 Descargar Reporte")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    json_data = exportar_json()
+                    st.download_button(
+                        label="📄 Descargar JSON",
+                        data=json_data,
+                        file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
+                        mime="application/json",
+                        use_container_width=True
+                    )
+                
+                with col2:
+                    pdf_buffer = generar_pdf_asesoria()
+                    if pdf_buffer:
+                        st.download_button(
+                            label="📑 Descargar PDF",
+                            data=pdf_buffer,
+                            file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                            mime="application/pdf",
+                            use_container_width=True
+                        )
+                
+                with col3:
+                    if grafico_buffer:
+                        st.download_button(
+                            label="📊 Descargar Gráfico",
+                            data=grafico_buffer,
+                            file_name=f"grafico_necesidades_{datetime.now().strftime('%Y%m%d')}.png",
+                            mime="image/png",
+                            use_container_width=True
+                        )
 
 # ================================
 # PIE DE PÁGINA
