@@ -27,7 +27,8 @@ import tempfile
 warnings.filterwarnings('ignore')
 
 def json_safe(obj):
-    if isinstance(obj, (datetime.date, datetime.datetime)):
+    """Helper function to safely serialize objects to JSON"""
+    if isinstance(obj, (date, datetime)):  # Changed from (datetime.date, datetime.datetime)
         return obj.isoformat()
     if isinstance(obj, (np.integer,)):
         return int(obj)
@@ -177,10 +178,11 @@ def calcular_edad(fecha_nacimiento):
         else:
             fecha_nac = fecha_nacimiento
         
-        hoy = date.today()
+        hoy = date.today()  # Already imported
         edad = hoy.year - fecha_nac.year - ((hoy.month, hoy.day) < (fecha_nac.month, fecha_nac.day))
         return edad
-    except:
+    except Exception as e:
+        st.error(f"Error calculando edad: {e}")
         return None
 
 def validar_email(email):
@@ -1645,5 +1647,6 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
