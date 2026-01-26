@@ -7,6 +7,7 @@ Fecha: 2026
 """
 
 import streamlit as st
+import numpy as np
 import pandas as pd
 from datetime import datetime, date
 import json
@@ -24,6 +25,17 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors as pdf_colors
 import tempfile
 warnings.filterwarnings('ignore')
+
+def json_safe(obj):
+    if isinstance(obj, (datetime.date, datetime.datetime)):
+        return obj.isoformat()
+    if isinstance(obj, (np.integer,)):
+        return int(obj)
+    if isinstance(obj, (np.floating,)):
+        return float(obj)
+    if isinstance(obj, set):
+        return list(obj)
+    return str(obj)
 
 # ================================
 # CONFIGURACIÓN DE LA APP
@@ -201,7 +213,12 @@ def exportar_json():
         'datos_completos': st.session_state.datos,
         'necesidades_detectadas': detectar_necesidades()
     }
-    return json.dumps(datos_export, indent=2, ensure_ascii=False)
+    return json.dumps(
+    datos_export,
+    indent=2,
+    ensure_ascii=False,
+    default=json_safe
+    )
 
 def generar_pdf_asesoria():
     """Genera PDF con el resumen de la asesoría"""
@@ -1628,4 +1645,5 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
