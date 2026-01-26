@@ -843,7 +843,7 @@ elif st.session_state.step == 3:
         
         if ingreso_mensual > 0:
             ingreso_anual = ingreso_mensual * 12
-            ahorro_ideal_10 = ingreso_anual * 0.10
+            ahorro_ideal_10 = ingreso_mensual * 0.10
             ahorro_conservador_7 = ingreso_mensual * 0.07
             
             st.markdown("---")
@@ -1662,6 +1662,7 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
