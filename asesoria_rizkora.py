@@ -853,14 +853,14 @@ elif st.session_state.step == 3:
             with col1:
                 st.metric("Ingreso Anual", formatear_moneda(ingreso_anual))
             with col2:
-                st.metric("Ahorro Ideal (10% anual)", formatear_moneda(ahorro_ideal_10))
+                st.metric("Ahorro Ideal (10% mensual)", formatear_moneda(ahorro_ideal_10))
             with col3:
                 st.metric("Ahorro Conservador (7% mensual)", formatear_moneda(ahorro_conservador_7))
             
             st.info(f"""
             💡 **Recomendación:**
             - Para una salud financiera óptima, considera ahorrar al menos el **7% de tu ingreso mensual** ({formatear_moneda(ahorro_conservador_7)})
-            - Idealmente, apunta al **10% anual** ({formatear_moneda(ahorro_ideal_10)})
+            - Idealmente, apunta al **10% mensual** ({formatear_moneda(ahorro_ideal_10)})
             """)
         
         st.markdown("---")
@@ -888,7 +888,7 @@ elif st.session_state.step == 3:
                 st.session_state.datos['ingresos'] = {
                     'ingreso_mensual': ingreso_mensual,
                     'ingreso_anual': ingreso_mensual * 12,
-                    'ahorro_ideal_10': ingreso_mensual * 12 * 0.10,
+                    'ahorro_ideal_10': ingreso_mensual * 0.10,
                     'ahorro_conservador_7': ingreso_mensual * 0.07,
                     'inversion_mensual': inversion_mensual
                 }
@@ -1662,6 +1662,7 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
