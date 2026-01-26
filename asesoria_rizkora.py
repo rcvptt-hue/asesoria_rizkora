@@ -1476,165 +1476,180 @@ elif st.session_state.step == 8:
 elif st.session_state.step == 9:
     st.header("9️⃣ Cierre de la Asesoría")
     
-    with st.form("form_cierre"):
-        st.subheader("📝 Retroalimentación")
-        
-        satisfaccion = st.text_area(
-            "¿Qué fue lo que más te agradó de esta asesoría?*",
-            value=st.session_state.datos['cierre'].get('satisfaccion', ''),
-            height=100
-        )
-        
-        segunda_cita = st.radio("¿Te gustaría agendar una segunda cita?*", ["Sí", "No"],
-                               index=0 if st.session_state.datos['cierre'].get('segunda_cita') == "Sí" else 1)
-        
-        fecha_segunda_cita = None
-        hora_segunda_cita = None
-        if segunda_cita == "Sí":
-            col1, col2 = st.columns(2)
-            with col1:
-                fecha_segunda_cita = st.date_input("Fecha de segunda cita",
-                                                   value=st.session_state.datos['cierre'].get('fecha_segunda_cita', date.today()),
-                                                   min_value=date.today())
-            with col2:
-                hora_segunda_cita = st.time_input("Hora de segunda cita",
-                                                 value=st.session_state.datos['cierre'].get('hora_segunda_cita'))
-        
-        st.markdown("---")
-        st.subheader("👥 Referidos")
-        st.write("¿Conoces a alguien que pudiera beneficiarse de una asesoría financiera?")
-        
-        num_referidos = st.number_input("¿Cuántos referidos tienes?", 
-                                       min_value=0, max_value=5,
-                                       value=st.session_state.datos['cierre'].get('num_referidos', 0))
-        
-        referidos = []
-        referidos_previos = st.session_state.datos['cierre'].get('referidos', [])
-        
-        for i in range(num_referidos):
-            st.write(f"**Referido {i+1}**")
-            col1, col2 = st.columns(2)
-            with col1:
-                nombre_ref = st.text_input(f"Nombre", 
-                                          value=referidos_previos[i]['nombre'] if i < len(referidos_previos) else '',
-                                          key=f"nombre_ref_{i}")
-                edad_ref = st.number_input(f"Edad", 
-                                          min_value=18, max_value=100,
-                                          value=referidos_previos[i]['edad'] if i < len(referidos_previos) else 30,
-                                          key=f"edad_ref_{i}")
-            with col2:
-                parentesco_ref = st.text_input(f"Parentesco/Relación", 
-                                              value=referidos_previos[i]['parentesco'] if i < len(referidos_previos) else '',
-                                              placeholder="Ej: Hermano, Amigo, Compañero",
-                                              key=f"parentesco_ref_{i}")
-                comentarios_ref = st.text_area(f"Comentarios", 
-                                              value=referidos_previos[i]['comentarios'] if i < len(referidos_previos) else '',
-                                              key=f"comentarios_ref_{i}",
-                                              height=60)
+    # Check if the cierre form has already been submitted
+    cierre_submitted = st.session_state.datos['cierre'].get('submitted', False)
+    
+    if not cierre_submitted:
+        # Show the form if not submitted yet
+        with st.form("form_cierre"):
+            st.subheader("📝 Retroalimentación")
             
-            referidos.append({
-                'nombre': nombre_ref,
-                'edad': edad_ref,
-                'parentesco': parentesco_ref,
-                'comentarios': comentarios_ref
-            })
+            satisfaccion = st.text_area(
+                "¿Qué fue lo que más te agradó de esta asesoría?*",
+                value=st.session_state.datos['cierre'].get('satisfaccion', ''),
+                height=100
+            )
+            
+            segunda_cita = st.radio("¿Te gustaría agendar una segunda cita?*", ["Sí", "No"],
+                                   index=0 if st.session_state.datos['cierre'].get('segunda_cita') == "Sí" else 1)
+            
+            fecha_segunda_cita = None
+            hora_segunda_cita = None
+            if segunda_cita == "Sí":
+                col1, col2 = st.columns(2)
+                with col1:
+                    fecha_segunda_cita = st.date_input("Fecha de segunda cita",
+                                                       value=st.session_state.datos['cierre'].get('fecha_segunda_cita', date.today()),
+                                                       min_value=date.today())
+                with col2:
+                    hora_segunda_cita = st.time_input("Hora de segunda cita",
+                                                     value=st.session_state.datos['cierre'].get('hora_segunda_cita'))
             
             st.markdown("---")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("⬅️ Anterior", use_container_width=True):
-                navegar_a_paso(8)
-        with col2:
-            submitted = st.form_submit_button("✅ Finalizar Asesoría", type="primary", use_container_width=True)
-        
-        if submitted:
-            if not satisfaccion.strip():
-                st.error("❌ Por favor comparte tu experiencia con la asesoría")
-            else:
-                # Guardar datos
-                st.session_state.datos['cierre'] = {
-                    'satisfaccion': satisfaccion,
-                    'segunda_cita': segunda_cita,
-                    'fecha_segunda_cita': fecha_segunda_cita,
-                    'hora_segunda_cita': hora_segunda_cita,
-                    'num_referidos': num_referidos,
-                    'referidos': referidos
-                }
-                
-                st.success("✅ ¡Asesoría completada exitosamente!")
-                st.balloons()
-                
-                # Guardar automáticamente en Google Sheets si está habilitado
-                if st.session_state.google_sheets_habilitado:
-                    with st.spinner("Guardando en Google Sheets..."):
-                        exito, mensaje = guardar_asesoria_sheets(st.session_state.datos)
-                        if exito:
-                            st.success(f"☁️ {mensaje}")
-                        else:
-                            st.warning(f"⚠️ {mensaje}")
-                
-                # Mostrar resumen final
-                st.markdown("---")
-                st.subheader("📊 Resumen Final")
-                
-                necesidades = detectar_necesidades()
-                
-                # Mostrar gráfico
-                grafico_buffer = generar_graficos_necesidades()
-                if grafico_buffer:
-                    st.image(grafico_buffer, use_container_width=True)
-                
-                st.write(f"""
-                **Cliente:** {st.session_state.datos['datos_generales'].get('nombre')}
-                
-                **Necesidad Principal:** {necesidades['principal'].upper()}
-                
-                **Próximos Pasos:**
-                - Revisar propuestas específicas para las necesidades detectadas
-                - {"Agendar segunda cita para el " + str(fecha_segunda_cita) if segunda_cita == "Sí" else "Dar seguimiento vía telefónica"}
-                - {f"Contactar a {num_referidos} referido(s)" if num_referidos > 0 else ""}
-                
-                **Agente:** {st.session_state.datos['datos_generales'].get('nombre_agente')}
-                **Fecha:** {st.session_state.datos['datos_generales'].get('fecha_asesoria')}
-                """)
-                
-                # Botones de exportar
-                st.markdown("---")
-                st.subheader("💾 Descargar Reporte")
-                
-                col1, col2, col3 = st.columns(3)
-                
+            st.subheader("👥 Referidos")
+            st.write("¿Conoces a alguien que pudiera beneficiarse de una asesoría financiera?")
+            
+            num_referidos = st.number_input("¿Cuántos referidos tienes?", 
+                                           min_value=0, max_value=5,
+                                           value=st.session_state.datos['cierre'].get('num_referidos', 0))
+            
+            referidos = []
+            referidos_previos = st.session_state.datos['cierre'].get('referidos', [])
+            
+            for i in range(num_referidos):
+                st.write(f"**Referido {i+1}**")
+                col1, col2 = st.columns(2)
                 with col1:
-                    json_data = exportar_json()
-                    st.download_button(
-                        label="📄 Descargar JSON",
-                        data=json_data,
-                        file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
-                        mime="application/json",
-                        use_container_width=True
-                    )
-                
+                    nombre_ref = st.text_input(f"Nombre", 
+                                              value=referidos_previos[i]['nombre'] if i < len(referidos_previos) else '',
+                                              key=f"nombre_ref_{i}")
+                    edad_ref = st.number_input(f"Edad", 
+                                              min_value=18, max_value=100,
+                                              value=referidos_previos[i]['edad'] if i < len(referidos_previos) else 30,
+                                              key=f"edad_ref_{i}")
                 with col2:
-                    pdf_buffer = generar_pdf_asesoria()
-                    if pdf_buffer:
-                        st.download_button(
-                            label="📑 Descargar PDF",
-                            data=pdf_buffer,
-                            file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
+                    parentesco_ref = st.text_input(f"Parentesco/Relación", 
+                                                  value=referidos_previos[i]['parentesco'] if i < len(referidos_previos) else '',
+                                                  placeholder="Ej: Hermano, Amigo, Compañero",
+                                                  key=f"parentesco_ref_{i}")
+                    comentarios_ref = st.text_area(f"Comentarios", 
+                                                  value=referidos_previos[i]['comentarios'] if i < len(referidos_previos) else '',
+                                                  key=f"comentarios_ref_{i}",
+                                                  height=60)
                 
-                with col3:
-                    if grafico_buffer:
-                        st.download_button(
-                            label="📊 Descargar Gráfico",
-                            data=grafico_buffer,
-                            file_name=f"grafico_necesidades_{datetime.now().strftime('%Y%m%d')}.png",
-                            mime="image/png",
-                            use_container_width=True
-                        )
+                referidos.append({
+                    'nombre': nombre_ref,
+                    'edad': edad_ref,
+                    'parentesco': parentesco_ref,
+                    'comentarios': comentarios_ref
+                })
+                
+                st.markdown("---")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.form_submit_button("⬅️ Anterior", use_container_width=True):
+                    navegar_a_paso(8)
+            with col2:
+                submitted = st.form_submit_button("✅ Finalizar Asesoría", type="primary", use_container_width=True)
+            
+            if submitted:
+                if not satisfaccion.strip():
+                    st.error("❌ Por favor comparte tu experiencia con la asesoría")
+                else:
+                    # Guardar datos
+                    st.session_state.datos['cierre'] = {
+                        'satisfaccion': satisfaccion,
+                        'segunda_cita': segunda_cita,
+                        'fecha_segunda_cita': fecha_segunda_cita,
+                        'hora_segunda_cita': hora_segunda_cita,
+                        'num_referidos': num_referidos,
+                        'referidos': referidos,
+                        'submitted': True  # Mark as submitted
+                    }
+                    
+                    # Save to Google Sheets if enabled
+                    if st.session_state.google_sheets_habilitado:
+                        with st.spinner("Guardando en Google Sheets..."):
+                            exito, mensaje = guardar_asesoria_sheets(st.session_state.datos)
+                            if exito:
+                                st.success(f"☁️ {mensaje}")
+                            else:
+                                st.warning(f"⚠️ {mensaje}")
+                    
+                    st.rerun()  # Reload to show the summary below
+    
+    else:
+        # Show the summary and download buttons (outside the form)
+        st.success("✅ ¡Asesoría completada exitosamente!")
+        st.balloons()
+        
+        # Mostrar resumen final
+        st.markdown("---")
+        st.subheader("📊 Resumen Final")
+        
+        necesidades = detectar_necesidades()
+        
+        # Mostrar gráfico
+        grafico_buffer = generar_graficos_necesidades()
+        if grafico_buffer:
+            st.image(grafico_buffer, use_container_width=True)
+        
+        st.write(f"""
+        **Cliente:** {st.session_state.datos['datos_generales'].get('nombre')}
+        
+        **Necesidad Principal:** {necesidades['principal'].upper()}
+        
+        **Próximos Pasos:**
+        - Revisar propuestas específicas para las necesidades detectadas
+        - {"Agendar segunda cita para el " + str(st.session_state.datos['cierre'].get('fecha_segunda_cita')) if st.session_state.datos['cierre'].get('segunda_cita') == "Sí" else "Dar seguimiento vía telefónica"}
+        - {f"Contactar a {st.session_state.datos['cierre'].get('num_referidos')} referido(s)" if st.session_state.datos['cierre'].get('num_referidos', 0) > 0 else ""}
+        
+        **Agente:** {st.session_state.datos['datos_generales'].get('nombre_agente')}
+        **Fecha:** {st.session_state.datos['datos_generales'].get('fecha_asesoria')}
+        """)
+        
+        # Botones de exportar
+        st.markdown("---")
+        st.subheader("💾 Descargar Reporte")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            json_data = exportar_json()
+            st.download_button(
+                label="📄 Descargar JSON",
+                data=json_data,
+                file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json",
+                use_container_width=True
+            )
+        
+        with col2:
+            pdf_buffer = generar_pdf_asesoria()
+            if pdf_buffer:
+                st.download_button(
+                    label="📑 Descargar PDF",
+                    data=pdf_buffer,
+                    file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True
+                )
+        
+        with col3:
+            if grafico_buffer:
+                st.download_button(
+                    label="📊 Descargar Gráfico",
+                    data=grafico_buffer,
+                    file_name=f"grafico_necesidades_{datetime.now().strftime('%Y%m%d')}.png",
+                    mime="image/png",
+                    use_container_width=True
+                )
+        
+        # Botón para volver a editar el cierre
+        if st.button("✏️ Editar información de cierre", type="secondary", use_container_width=True):
+            st.session_state.datos['cierre']['submitted'] = False
+            st.rerun()
 
 # ================================
 # PIE DE PÁGINA
@@ -1647,6 +1662,7 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
