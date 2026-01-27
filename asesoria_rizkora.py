@@ -226,11 +226,28 @@ def navegar_a_paso(paso):
 
 def exportar_json():
     """Exporta datos a JSON"""
+    
+    # Función auxiliar para convertir objetos no serializables
+    def convertir_a_serializable(obj):
+        """Convierte objetos date/datetime a string"""
+        if isinstance(obj, (date, datetime)):
+            return obj.strftime("%d/%m/%Y") if isinstance(obj, date) else obj.strftime("%d/%m/%Y %H:%M:%S")
+        elif isinstance(obj, dict):
+            return {k: convertir_a_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [convertir_a_serializable(item) for item in obj]
+        else:
+            return obj
+    
+    # Convertir todos los datos a formato serializable
+    datos_serializables = convertir_a_serializable(st.session_state.datos)
+    
     datos_export = {
         'fecha_generacion': datetime.now().strftime("%d/%m/%Y %H:%M:%S"),
-        'datos_completos': st.session_state.datos,
+        'datos_completos': datos_serializables,
         'necesidades_detectadas': detectar_necesidades()
     }
+    
     return json.dumps(datos_export, indent=2, ensure_ascii=False)
 
 def generar_pdf_asesoria():
