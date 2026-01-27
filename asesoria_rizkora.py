@@ -1656,80 +1656,88 @@ elif st.session_state.step == 9:
                 **Agente:** {st.session_state.datos['datos_generales'].get('nombre_agente')}
                 **Fecha:** {st.session_state.datos['datos_generales'].get('fecha_asesoria')}
                 """)
-                
-                # Botones de exportar
-                st.markdown("---")
-                st.subheader("💾 Descargar Reporte")
-                
-                col1, col2, col3 = st.columns(3)
-                
-                with col1:
-                    json_data = exportar_json()
-                    st.download_button(
-                        label="📄 Descargar JSON",
-                        data=json_data,
-                        file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
-                        mime="application/json",
-                        use_container_width=True
-                    )
-                
-                with col2:
-                    pdf_buffer = generar_pdf_asesoria()
-                    if pdf_buffer:
-                        st.download_button(
-                            label="📑 Descargar PDF",
-                            data=pdf_buffer,
-                            file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                            mime="application/pdf",
-                            use_container_width=True
-                        )
-                
-                with col3:
-                    if grafico_buffer:
-                        st.download_button(
-                            label="📊 Descargar Gráfico",
-                            data=grafico_buffer,
-                            file_name=f"grafico_necesidades_{datetime.now().strftime('%Y%m%d')}.png",
-                            mime="image/png",
-                            use_container_width=True
-                        )
-                
-                # Botón para nueva asesoría
-                st.markdown("---")
-                st.subheader("🔄 Nueva Asesoría")
-                
-                # Mostrar advertencia y botón de confirmación
-                if not st.session_state.confirmar_reinicio:
-                    if st.button("🆕 Iniciar Nueva Asesoría", type="secondary", use_container_width=True):
-                        st.session_state.confirmar_reinicio = True
-                        st.rerun()
-                else:
-                    st.warning("⚠️ **¿Estás seguro?** Se perderán todos los datos de la asesoría actual.")
-                    
-                    col_confirm1, col_confirm2 = st.columns(2)
-                    
-                    with col_confirm1:
-                        if st.button("✅ Sí, iniciar nueva", type="primary", use_container_width=True):
-                            # Limpiar todos los datos
-                            st.session_state.step = 1
-                            st.session_state.datos = {
-                                'datos_generales': {},
-                                'perfil_familiar': {},
-                                'ingresos': {},
-                                'proteccion': {},
-                                'ahorro': {},
-                                'retiro': {},
-                                'educacion': {},
-                                'cierre': {}
-                            }
-                            st.session_state.confirmar_reinicio = False
-                            st.success("✅ Datos limpiados. Iniciando nueva asesoría...")
-                            st.rerun()
-                    
-                    with col_confirm2:
-                        if st.button("❌ Cancelar", type="secondary", use_container_width=True):
-                            st.session_state.confirmar_reinicio = False
-                            st.rerun()
+    
+    # BOTONES DE DESCARGA FUERA DEL FORMULARIO
+    # Solo mostrar si ya se completó la asesoría
+    if st.session_state.step == 9 and st.session_state.datos['cierre'].get('satisfaccion'):
+        # Botones de exportar
+        st.markdown("---")
+        st.subheader("💾 Descargar Reporte")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            json_data = exportar_json()
+            st.download_button(
+                label="📄 Descargar JSON",
+                data=json_data,
+                file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
+                mime="application/json",
+                use_container_width=True,
+                key="download_json_final"
+            )
+        
+        with col2:
+            pdf_buffer = generar_pdf_asesoria()
+            if pdf_buffer:
+                st.download_button(
+                    label="📑 Descargar PDF",
+                    data=pdf_buffer,
+                    file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_pdf_final"
+                )
+        
+        with col3:
+            grafico_buffer = generar_graficos_necesidades()
+            if grafico_buffer:
+                st.download_button(
+                    label="📊 Descargar Gráfico",
+                    data=grafico_buffer,
+                    file_name=f"grafico_necesidades_{datetime.now().strftime('%Y%m%d')}.png",
+                    mime="image/png",
+                    use_container_width=True,
+                    key="download_grafico_final"
+                )
+        
+        # Botón para nueva asesoría
+        st.markdown("---")
+        st.subheader("🔄 Nueva Asesoría")
+        
+        # Mostrar advertencia y botón de confirmación
+        if not st.session_state.confirmar_reinicio:
+            if st.button("🆕 Iniciar Nueva Asesoría", type="secondary", use_container_width=True):
+                st.session_state.confirmar_reinicio = True
+                st.rerun()
+        else:
+            st.warning("⚠️ **¿Estás seguro?** Se perderán todos los datos de la asesoría actual.")
+            
+            col_confirm1, col_confirm2 = st.columns(2)
+            
+            with col_confirm1:
+                if st.button("✅ Sí, iniciar nueva", type="primary", use_container_width=True):
+                    # Limpiar todos los datos
+                    st.session_state.step = 1
+                    st.session_state.datos = {
+                        'datos_generales': {},
+                        'perfil_familiar': {},
+                        'ingresos': {},
+                        'proteccion': {},
+                        'ahorro': {},
+                        'retiro': {},
+                        'educacion': {},
+                        'cierre': {}
+                    }
+                    st.session_state.confirmar_reinicio = False
+                    st.session_state.edad_calculada_temp = None
+                    st.success("✅ Datos limpiados. Iniciando nueva asesoría...")
+                    st.rerun()
+            
+            with col_confirm2:
+                if st.button("❌ Cancelar", type="secondary", use_container_width=True):
+                    st.session_state.confirmar_reinicio = False
+                    st.rerun()
 
 # ================================
 # PIE DE PÁGINA
