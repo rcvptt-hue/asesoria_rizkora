@@ -653,106 +653,75 @@ st.title("🎯 Asesoría Financiera Integral Rizkora")
 if st.session_state.step == 1:
     st.header("1️⃣ Datos Generales")
     
-    # Inicializar valores temporales si no existen
-    if 'temp_form_data' not in st.session_state:
-        st.session_state.temp_form_data = {}
-    
-    # Pre-cargar datos existentes en temp
-    if not st.session_state.temp_form_data and st.session_state.datos['datos_generales']:
-        st.session_state.temp_form_data = st.session_state.datos['datos_generales'].copy()
-    
-    # Selector de fecha FUERA del formulario para cálculo en tiempo real
-    st.subheader("📅 Fecha de Nacimiento")
-    
-    fecha_nacimiento_preview = st.date_input(
-        "Selecciona la fecha de nacimiento*",
-        value=st.session_state.temp_form_data.get('fecha_nacimiento', date.today()),
-        min_value=date(1920, 1, 1),
-        max_value=date.today(),
-        key="fecha_nac_realtime"
-    )
-    
-    # Calcular y mostrar edad en tiempo real
-    if fecha_nacimiento_preview:
-        edad_calculada = calcular_edad(fecha_nacimiento_preview)
-        if edad_calculada:
-            st.success(f"✅ Edad calculada: **{edad_calculada} años**")
-            # Guardar en temp
-            st.session_state.temp_form_data['fecha_nacimiento'] = fecha_nacimiento_preview
-            st.session_state.temp_form_data['edad'] = edad_calculada
-    
-    st.markdown("---")
+    # Inicializar edad calculada en session state
+    if 'edad_calculada_temp' not in st.session_state:
+        st.session_state.edad_calculada_temp = None
     
     with st.form("form_datos_generales"):
-        st.subheader("📝 Información del Cliente")
-        
         col1, col2 = st.columns(2)
         
         with col1:
-            nombre = st.text_input(
-                "Nombre completo*", 
-                value=st.session_state.temp_form_data.get('nombre', ''),
-                key="form_nombre"
-            )
-            telefono = st.text_input(
-                "Teléfono* (10 dígitos)", 
-                value=st.session_state.temp_form_data.get('telefono', ''),
-                placeholder="5512345678",
-                key="form_telefono"
-            )
-            correo = st.text_input(
-                "Correo electrónico*", 
-                value=st.session_state.temp_form_data.get('correo', ''),
-                placeholder="ejemplo@email.com",
-                key="form_correo"
-            )
-            ocupacion = st.text_input(
-                "Ocupación*", 
-                value=st.session_state.temp_form_data.get('ocupacion', ''),
-                key="form_ocupacion"
-            )
+            nombre = st.text_input("Nombre completo*", 
+                                  value=st.session_state.datos['datos_generales'].get('nombre', ''))
+            telefono = st.text_input("Teléfono* (10 dígitos)", 
+                                    value=st.session_state.datos['datos_generales'].get('telefono', ''),
+                                    placeholder="5512345678")
+            correo = st.text_input("Correo electrónico*", 
+                                  value=st.session_state.datos['datos_generales'].get('correo', ''),
+                                  placeholder="ejemplo@email.com")
+            ocupacion = st.text_input("Ocupación*", 
+                                     value=st.session_state.datos['datos_generales'].get('ocupacion', ''))
         
         with col2:
-            estado_civil_opciones = ["", "Soltero", "Casado", "Unión libre", "Divorciado", "Viudo"]
-            estado_civil_actual = st.session_state.temp_form_data.get('estado_civil', '')
-            estado_civil_index = estado_civil_opciones.index(estado_civil_actual) if estado_civil_actual in estado_civil_opciones else 0
+            estado_civil = st.selectbox("Estado civil*", 
+                                       ["", "Soltero", "Casado", "Unión libre", "Divorciado", "Viudo"],
+                                       index=["", "Soltero", "Casado", "Unión libre", "Divorciado", "Viudo"].index(
+                                           st.session_state.datos['datos_generales'].get('estado_civil', '')))
             
-            estado_civil = st.selectbox(
-                "Estado civil*", 
-                estado_civil_opciones,
-                index=estado_civil_index,
-                key="form_estado_civil"
-            )
+            # Fecha de nacimiento con columnas para botón
+            st.write("**Fecha de nacimiento***")
+            col_fecha, col_boton = st.columns([3, 1])
             
-            fumador = st.radio(
-                "¿Ha fumado en los últimos 2 años?*", 
-                ["Sí", "No"],
-                index=0 if st.session_state.temp_form_data.get('fumador') == "Sí" else 1,
-                key="form_fumador"
-            )
+            with col_fecha:
+                fecha_nacimiento = st.date_input(
+                    "Fecha",
+                    value=st.session_state.datos['datos_generales'].get('fecha_nacimiento', date.today()),
+                    min_value=date(1920, 1, 1),
+                    max_value=date.today(),
+                    label_visibility="collapsed"
+                )
             
-            tipo_cita = st.radio(
-                "Tipo de cita*", 
-                ["Presencial", "Virtual"],
-                index=0 if st.session_state.temp_form_data.get('tipo_cita') == "Presencial" else 1,
-                key="form_tipo_cita"
-            )
+            with col_boton:
+                calcular_edad_btn = st.form_submit_button("🔢 Calcular", use_container_width=True)
+            
+            # Mostrar edad si fue calculada
+            if st.session_state.edad_calculada_temp:
+                st.success(f"✅ Edad: **{st.session_state.edad_calculada_temp} años**")
+            
+            fumador = st.radio("¿Ha fumado en los últimos 2 años?*", 
+                              ["Sí", "No"],
+                              index=0 if st.session_state.datos['datos_generales'].get('fumador') == "Sí" else 1)
+            
+            tipo_cita = st.radio("Tipo de cita*", 
+                               ["Presencial", "Virtual"],
+                               index=0 if st.session_state.datos['datos_generales'].get('tipo_cita') == "Presencial" else 1)
         
         col3, col4 = st.columns(2)
         with col3:
-            nombre_agente = st.text_input(
-                "Nombre del agente*", 
-                value=st.session_state.temp_form_data.get('nombre_agente', ''),
-                key="form_agente"
-            )
+            nombre_agente = st.text_input("Nombre del agente*", 
+                                         value=st.session_state.datos['datos_generales'].get('nombre_agente', ''))
         with col4:
-            fecha_asesoria = st.date_input(
-                "Fecha de asesoría*",
-                value=st.session_state.temp_form_data.get('fecha_asesoria', date.today()),
-                key="form_fecha_asesoria"
-            )
+            fecha_asesoria = st.date_input("Fecha de asesoría*",
+                                          value=st.session_state.datos['datos_generales'].get('fecha_asesoria', date.today()))
         
         submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
+        
+        # Manejar botón de calcular edad
+        if calcular_edad_btn:
+            edad = calcular_edad(fecha_nacimiento)
+            if edad:
+                st.session_state.edad_calculada_temp = edad
+                st.rerun()
         
         if submitted:
             errores = []
@@ -775,6 +744,11 @@ if st.session_state.step == 1:
                 for error in errores:
                     st.error(f"❌ {error}")
             else:
+                # Usar edad calculada si existe, si no calcularla ahora
+                edad_final = st.session_state.edad_calculada_temp
+                if not edad_final:
+                    edad_final = calcular_edad(fecha_nacimiento)
+                
                 # Guardar datos
                 st.session_state.datos['datos_generales'] = {
                     'nombre': nombre.strip(),
@@ -783,12 +757,15 @@ if st.session_state.step == 1:
                     'ocupacion': ocupacion.strip(),
                     'estado_civil': estado_civil,
                     'fecha_nacimiento': fecha_nacimiento,
-                    'edad': calcular_edad(fecha_nacimiento),
+                    'edad': edad_final,
                     'fumador': fumador,
                     'tipo_cita': tipo_cita,
                     'nombre_agente': nombre_agente.strip(),
                     'fecha_asesoria': fecha_asesoria
                 }
+                
+                # Limpiar edad temporal
+                st.session_state.edad_calculada_temp = None
                 
                 st.success("✅ Datos guardados correctamente")
                 navegar_a_paso(2)
