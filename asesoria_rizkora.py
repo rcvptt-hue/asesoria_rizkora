@@ -802,6 +802,9 @@ if st.session_state.step == 1:
 # ================================
 # PASO 2: PERFIL FAMILIAR
 # ================================
+# ================================
+# PASO 2: PERFIL FAMILIAR
+# ================================
 elif st.session_state.step == 2:
     st.header("2️⃣ Perfil Familiar")
     
@@ -810,17 +813,20 @@ elif st.session_state.step == 2:
         tiene_pareja = st.radio("¿Tienes pareja?*", ["Sí", "No"],
                                index=0 if st.session_state.datos['perfil_familiar'].get('tiene_pareja') == "Sí" else 1)
         
-        nombre_pareja = ""
-        edad_pareja = None
+        # Mostrar campos de pareja SIEMPRE cuando se selecciona "Sí"
         if tiene_pareja == "Sí":
+            st.subheader("Información de la pareja")
             col1, col2 = st.columns(2)
             with col1:
-                nombre_pareja = st.text_input("Nombre de tu pareja", 
+                nombre_pareja = st.text_input("Nombre de tu pareja*", 
                                              value=st.session_state.datos['perfil_familiar'].get('nombre_pareja', ''))
             with col2:
-                edad_pareja = st.number_input("Edad de tu pareja", 
+                edad_pareja = st.number_input("Edad de tu pareja*", 
                                             min_value=18, max_value=100, 
                                             value=st.session_state.datos['perfil_familiar'].get('edad_pareja', 30))
+        else:
+            nombre_pareja = ""
+            edad_pareja = None
         
         # Hijos
         tiene_hijos = st.radio("¿Tienes hijos?*", ["Sí", "No"],
@@ -828,14 +834,20 @@ elif st.session_state.step == 2:
         
         hijos = []
         if tiene_hijos == "Sí":
-            num_hijos = st.number_input("¿Cuántos hijos tienes?", 
+            # Obtener el valor guardado, pero asegurarse de que sea al menos 1
+            num_hijos_guardado = st.session_state.datos['perfil_familiar'].get('num_hijos', 1)
+            if num_hijos_guardado < 1:
+                num_hijos_guardado = 1
+                
+            num_hijos = st.number_input("¿Cuántos hijos tienes?*", 
                                        min_value=1, max_value=10, 
-                                       value=st.session_state.datos['perfil_familiar'].get('num_hijos', 1))
+                                       value=num_hijos_guardado)
             
             st.subheader("Información de hijos")
             hijos_previos = st.session_state.datos['perfil_familiar'].get('hijos', [])
             
             for i in range(num_hijos):
+                st.markdown(f"**Hijo(a) {i+1}**")
                 col1, col2 = st.columns(2)
                 with col1:
                     nombre_hijo = st.text_input(f"Nombre hijo(a) {i+1}", 
@@ -847,6 +859,7 @@ elif st.session_state.step == 2:
                                               value=hijos_previos[i]['edad'] if i < len(hijos_previos) else 0,
                                               key=f"edad_hijo_{i}")
                 hijos.append({'nombre': nombre_hijo, 'edad': edad_hijo})
+                st.markdown("---")
         
         # Otros dependientes
         tiene_dependientes = st.radio("¿Tienes otro dependiente económico?*", ["Sí", "No"],
@@ -854,25 +867,32 @@ elif st.session_state.step == 2:
         
         dependientes = []
         if tiene_dependientes == "Sí":
-            num_dependientes = st.number_input("¿Cuántos dependientes?", 
+            # Obtener el valor guardado, asegurarse de que sea al menos 1
+            num_dependientes_guardado = st.session_state.datos['perfil_familiar'].get('num_dependientes', 1)
+            if num_dependientes_guardado < 1:
+                num_dependientes_guardado = 1
+                
+            num_dependientes = st.number_input("¿Cuántos dependientes?*", 
                                               min_value=1, max_value=5, 
-                                              value=st.session_state.datos['perfil_familiar'].get('num_dependientes', 1))
+                                              value=num_dependientes_guardado)
             
             st.subheader("Información de dependientes")
             dependientes_previos = st.session_state.datos['perfil_familiar'].get('dependientes', [])
             
             for i in range(num_dependientes):
+                st.markdown(f"**Dependiente {i+1}**")
                 col1, col2 = st.columns(2)
                 with col1:
-                    nombre_dep = st.text_input(f"Nombre dependiente {i+1}", 
+                    nombre_dep = st.text_input(f"Nombre dependiente {i+1}*", 
                                               value=dependientes_previos[i]['nombre'] if i < len(dependientes_previos) else '',
                                               key=f"nombre_dep_{i}")
                 with col2:
-                    edad_dep = st.number_input(f"Edad dependiente {i+1}", 
+                    edad_dep = st.number_input(f"Edad dependiente {i+1}*", 
                                              min_value=0, max_value=100,
                                              value=dependientes_previos[i]['edad'] if i < len(dependientes_previos) else 0,
                                              key=f"edad_dep_{i}")
                 dependientes.append({'nombre': nombre_dep, 'edad': edad_dep})
+                st.markdown("---")
         
         col1, col2 = st.columns(2)
         with col1:
@@ -882,21 +902,48 @@ elif st.session_state.step == 2:
             submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
         
         if submitted:
-            # Guardar datos
-            st.session_state.datos['perfil_familiar'] = {
-                'tiene_pareja': tiene_pareja,
-                'nombre_pareja': nombre_pareja if tiene_pareja == "Sí" else '',
-                'edad_pareja': edad_pareja if tiene_pareja == "Sí" else None,
-                'tiene_hijos': tiene_hijos,
-                'num_hijos': len(hijos) if tiene_hijos == "Sí" else 0,
-                'hijos': hijos if tiene_hijos == "Sí" else [],
-                'tiene_dependientes': tiene_dependientes,
-                'num_dependientes': len(dependientes) if tiene_dependientes == "Sí" else 0,
-                'dependientes': dependientes if tiene_dependientes == "Sí" else []
-            }
+            errores = []
             
-            st.success("✅ Perfil familiar guardado")
-            navegar_a_paso(3)
+            # Validaciones
+            if tiene_pareja == "Sí":
+                if not nombre_pareja.strip():
+                    errores.append("El nombre de la pareja es obligatorio")
+                if not edad_pareja:
+                    errores.append("La edad de la pareja es obligatoria")
+            
+            if tiene_hijos == "Sí":
+                for i, hijo in enumerate(hijos):
+                    if not hijo['nombre'].strip():
+                        errores.append(f"El nombre del hijo {i+1} es obligatorio")
+                    if not hijo['edad']:
+                        errores.append(f"La edad del hijo {i+1} es obligatoria")
+            
+            if tiene_dependientes == "Sí":
+                for i, dep in enumerate(dependientes):
+                    if not dep['nombre'].strip():
+                        errores.append(f"El nombre del dependiente {i+1} es obligatorio")
+                    if not dep['edad']:
+                        errores.append(f"La edad del dependiente {i+1} es obligatoria")
+            
+            if errores:
+                for error in errores:
+                    st.error(f"❌ {error}")
+            else:
+                # Guardar datos
+                st.session_state.datos['perfil_familiar'] = {
+                    'tiene_pareja': tiene_pareja,
+                    'nombre_pareja': nombre_pareja if tiene_pareja == "Sí" else '',
+                    'edad_pareja': edad_pareja if tiene_pareja == "Sí" else None,
+                    'tiene_hijos': tiene_hijos,
+                    'num_hijos': len(hijos) if tiene_hijos == "Sí" else 0,
+                    'hijos': hijos if tiene_hijos == "Sí" else [],
+                    'tiene_dependientes': tiene_dependientes,
+                    'num_dependientes': len(dependientes) if tiene_dependientes == "Sí" else 0,
+                    'dependientes': dependientes if tiene_dependientes == "Sí" else []
+                }
+                
+                st.success("✅ Perfil familiar guardado")
+                navegar_a_paso(3)
 
 # ================================
 # PASO 3: INGRESOS Y CAPACIDAD
@@ -2067,4 +2114,5 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
