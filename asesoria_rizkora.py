@@ -34,7 +34,7 @@ from modulo_financiero import (
     analizar_salud_financiera,
     formatear_moneda  # Ya existe, pero usar la del módulo
 )
-
+from generar_pdf_mejorado import generar_pdf_asesoria_mejorado
 # ================================
 # CONFIGURACIÓN DE LA APP
 # ================================
@@ -1340,6 +1340,33 @@ elif st.session_state.step == 3:
                             
                             if st.button("Aceptar monto ajustado", type="primary"):
                                 navegar_a_paso(4)
+        # Botón para generar PDF parcial
+        st.markdown("---")
+        st.subheader("📄 Generar Reporte de Análisis Financiero")
+
+        if st.button("📑 Generar Reporte PDF", type="primary"):
+        with st.spinner("Generando PDF..."):
+            datos_parciales = {
+                'datos_generales': st.session_state.datos.get('datos_generales', {}),
+                'perfil_familiar': st.session_state.datos.get('perfil_familiar', {}),
+                'ingresos': st.session_state.datos.get('ingresos', {}),
+                'flujo_financiero': st.session_state.datos.get('flujo_financiero', {}),
+                'capacidad_ahorro': st.session_state.datos.get('capacidad_ahorro', {}),
+                'proteccion': {'aplica': False},
+                'retiro': {},
+                'educacion': {'aplica': False},
+                'ahorro': {'tiene_proyecto': 'No'}
+            }
+    
+            pdf_buffer = generar_pdf_asesoria_mejorado(datos_parciales)
+    
+            if pdf_buffer:
+                st.download_button(
+                    label="📥 Descargar Reporte",
+                    data=pdf_buffer,
+                    file_name=f"analisis_{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf"
+                )
         else:
             st.error("""
             ⚠️ **No puedes continuar con inversiones ahora**
@@ -2083,7 +2110,7 @@ elif st.session_state.step == 9:
             )
         
         with col2:
-            pdf_buffer = generar_pdf_asesoria()
+            pdf_buffer = generar_pdf_asesoria_mejorado(st.session_state.datos)
             if pdf_buffer:
                 st.download_button(
                     label="📑 Descargar PDF",
@@ -2155,6 +2182,7 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
