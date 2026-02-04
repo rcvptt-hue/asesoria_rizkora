@@ -299,32 +299,51 @@ def generar_pdf_asesoria_mejorado(datos_completos):
             semaforo = flujo.get('semaforo', '')
             mensaje_estado = flujo.get('mensaje_estado', '')
             
-            # Crear un Table con una celda para el recuadro (mejor control sobre el ancho)
-            estado_data = [[
-                f"<para alignment='center'>"
-                f"<font size='14'><b>{semaforo} ESTADO FINANCIERO: {estado}</b></font><br/><br/>"
-                f"<font size='11'>{mensaje_estado}</font>"
-                f"</para>"
-            ]]
+            # Crear el contenido del recuadro
+            estado_text = f"<b>{semaforo} ESTADO FINANCIERO: {estado}</b>"
+            mensaje_text = mensaje_estado
             
-            estado_table = Table(estado_data, colWidths=[6*inch])
+            # Crear una tabla con dos filas (título y mensaje)
+            estado_celda = Paragraph(estado_text, 
+                ParagraphStyle(
+                    'EstadoTitulo',
+                    parent=styles['Normal'],
+                    alignment=TA_CENTER,
+                    fontSize=14,
+                    textColor=pdf_colors.white,
+                    fontName='Helvetica-Bold',
+                    spaceAfter=10
+                )
+            )
+            
+            mensaje_celda = Paragraph(mensaje_text, 
+                ParagraphStyle(
+                    'EstadoMensaje',
+                    parent=styles['Normal'],
+                    alignment=TA_CENTER,
+                    fontSize=11,
+                    textColor=pdf_colors.white,
+                    fontName='Helvetica',
+                    leading=14,  # Interlineado
+                    wordWrap='CJK'  # Esto permite el word wrap
+                )
+            )
+            
+            # Crear tabla con las dos celdas
+            estado_table = Table([[estado_celda], [mensaje_celda]], colWidths=[6*inch])
             estado_table.setStyle(TableStyle([
                 ('BACKGROUND', (0, 0), (-1, -1), pdf_colors.HexColor(flujo.get('color_estado', '#CCCCCC'))),
-                ('TEXTCOLOR', (0, 0), (-1, -1), pdf_colors.white),
                 ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                 ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-                ('FONTSIZE', (0, 0), (-1, -1), 12),
-                ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
-                ('TOPPADDING', (0, 0), (-1, -1), 15),
-                ('LEFTPADDING', (0, 0), (-1, -1), 20),
-                ('RIGHTPADDING', (0, 0), (-1, -1), 20),
-                ('BOX', (0, 0), (-1, -1), 2, pdf_colors.white),
-                ('WORDWRAP', (0, 0), (-1, -1), True)  # ¡ESTO ES IMPORTANTE!
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                ('TOPPADDING', (0, 0), (-1, -1), 12),
+                ('LEFTPADDING', (0, 0), (-1, -1), 15),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 15),
+                ('BOX', (0, 0), (-1, -1), 1, pdf_colors.white)
             ]))
             
             story.append(estado_table)
-            story.append(Spacer(1, 0.2*inch))
+            story.append(Spacer(1, 0.5*inch))
             
             # Tabla de Flujo Financiero
             story.append(Paragraph("2.1 Resumen del Flujo Mensual", subsection_style))
@@ -358,7 +377,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
                 ('BACKGROUND', (0, 5), (-1, 5), pdf_colors.lightgrey),
                 ('BACKGROUND', (0, 6), (-1, 6), pdf_colors.HexColor(COLORES['azul_claro'])),
                 ('FONTNAME', (0, 6), (-1, 6), 'Helvetica-Bold'),
-                ('TEXTCOLOR', (0, 6), (-1, 6), pdf_colors.white),
+                ('TEXTCOLOR', (0, 6), (-1, 6), pdf_colors.black),
                 ('ROWBACKGROUNDS', (0, 2), (-1, 4), [pdf_colors.white, pdf_colors.lightgrey])
             ]))
             
