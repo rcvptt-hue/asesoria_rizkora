@@ -839,7 +839,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
         footer_text = f"""
         <para alignment="center">
         <font size="8" color="gray">
-        Reporte generado: {datetime.now().strftime('%d/%m/%Y a las %H:%M')}<br/>
+        # Reporte generado: {datetime.now().strftime('%d/%m/%Y a las %H:%M')}<br/>
         Asesoría Financiera Rizkora - Análisis Integral de Finanzas Personales<br/>
         Este reporte es confidencial y para uso exclusivo del cliente.<br/>
         <br/>
