@@ -239,8 +239,8 @@ def generar_pdf_asesoria_mejorado(datos_completos):
         cliente_table = Table(cliente_data, colWidths=[2.5*inch, 3.5*inch])
         cliente_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
-            ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
-            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.HexColor(COLORES['azul_claro'])),
+            ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.black),
+            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white)),
             ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -271,9 +271,9 @@ def generar_pdf_asesoria_mejorado(datos_completos):
         
         perfil_table = Table(perfil_info, colWidths=[2.5*inch, 3.5*inch])
         perfil_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['verde_agua'])),
+            ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
             ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
-            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.HexColor(COLORES['azul_claro'])),
+            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white)),
             ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -307,7 +307,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
             </para>
             """
             story.append(Paragraph(estado_text, styles['Normal']))
-            story.append(Spacer(1, 0.2*inch))
+            story.append(Spacer(1, 0.5*inch))
             
             # Tabla de Flujo Financiero
             story.append(Paragraph("2.1 Resumen del Flujo Mensual", subsection_style))
@@ -337,9 +337,9 @@ def generar_pdf_asesoria_mejorado(datos_completos):
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
                 ('GRID', (0, 0), (-1, -1), 1, pdf_colors.grey),
-                ('BACKGROUND', (0, 1), (0, 1), pdf_colors.HexColor(COLORES['verde_agua'])),
+                ('BACKGROUND', (0, 1), (-1, 1), pdf_colors.lightgrey)),
                 ('BACKGROUND', (0, 5), (-1, 5), pdf_colors.lightgrey),
-                ('BACKGROUND', (0, 6), (-1, 6), pdf_colors.HexColor(COLORES['verde_agua'])),
+                ('BACKGROUND', (0, 6), (-1, 6), pdf_colors.HexColor(COLORES['azul_claro'])),
                 ('FONTNAME', (0, 6), (-1, 6), 'Helvetica-Bold'),
                 ('TEXTCOLOR', (0, 6), (-1, 6), pdf_colors.white),
                 ('ROWBACKGROUNDS', (0, 2), (-1, 4), [pdf_colors.white, pdf_colors.lightgrey])
@@ -364,7 +364,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
                 
                 gastos_fijos_table = Table(gastos_fijos_data, colWidths=[3*inch, 2*inch])
                 gastos_fijos_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_claro'])),
+                    ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
                     ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
@@ -390,7 +390,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
                 
                 gastos_var_table = Table(gastos_var_data, colWidths=[3*inch, 2*inch])
                 gastos_var_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['verde_agua'])),
+                    ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
                     ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
                     ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
                     ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
@@ -808,7 +808,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
         Este reporte es confidencial y para uso exclusivo del cliente.<br/>
         <br/>
         <i>Nota: Los montos y recomendaciones son estimados basados en la información proporcionada.
-        Se recomienda consultar con un asesor financiero certificado para decisiones de inversión específicas.</i>
+        Se recomienda una sesión de seguimiento para revisar opciones de ahorro/inversión específicas.</i>
         </font>
         </para>
         """
