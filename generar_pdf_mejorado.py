@@ -299,15 +299,32 @@ def generar_pdf_asesoria_mejorado(datos_completos):
             semaforo = flujo.get('semaforo', '')
             mensaje_estado = flujo.get('mensaje_estado', '')
             
-            estado_text = f"""
-            <para alignment="center" backColor="{flujo.get('color_estado', '#CCCCCC')}" 
-                  leftIndent="10" rightIndent="10" spaceBefore="5" spaceAfter="5">
-            <font size="14" color="white"><b>{semaforo} ESTADO FINANCIERO: {estado}</b></font><br/>
-            <font size="10" color="white">{mensaje_estado}</font><br/>
-            </para>
-            """
-            story.append(Paragraph(estado_text, styles['Normal']))
-            story.append(Spacer(2, 0.5*inch))
+            # Crear un Table con una celda para el recuadro (mejor control sobre el ancho)
+            estado_data = [[
+                f"<para alignment='center'>"
+                f"<font size='14'><b>{semaforo} ESTADO FINANCIERO: {estado}</b></font><br/><br/>"
+                f"<font size='11'>{mensaje_estado}</font>"
+                f"</para>"
+            ]]
+            
+            estado_table = Table(estado_data, colWidths=[6*inch])
+            estado_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, -1), pdf_colors.HexColor(flujo.get('color_estado', '#CCCCCC'))),
+                ('TEXTCOLOR', (0, 0), (-1, -1), pdf_colors.white),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, -1), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
+                ('TOPPADDING', (0, 0), (-1, -1), 15),
+                ('LEFTPADDING', (0, 0), (-1, -1), 20),
+                ('RIGHTPADDING', (0, 0), (-1, -1), 20),
+                ('BOX', (0, 0), (-1, -1), 2, pdf_colors.white),
+                ('WORDWRAP', (0, 0), (-1, -1), True)  # ¡ESTO ES IMPORTANTE!
+            ]))
+            
+            story.append(estado_table)
+            story.append(Spacer(1, 0.2*inch))
             
             # Tabla de Flujo Financiero
             story.append(Paragraph("2.1 Resumen del Flujo Mensual", subsection_style))
