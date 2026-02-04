@@ -240,7 +240,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
         cliente_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
             ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.black),
-            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white)),
+            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white),
             ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -273,7 +273,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
         perfil_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
             ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
-            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white)),
+            ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white),
             ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.white),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -337,7 +337,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
                 ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
                 ('TOPPADDING', (0, 0), (-1, -1), 8),
                 ('GRID', (0, 0), (-1, -1), 1, pdf_colors.grey),
-                ('BACKGROUND', (0, 1), (-1, 1), pdf_colors.lightgrey)),
+                ('BACKGROUND', (0, 1), (-1, 1), pdf_colors.lightgrey),
                 ('BACKGROUND', (0, 5), (-1, 5), pdf_colors.lightgrey),
                 ('BACKGROUND', (0, 6), (-1, 6), pdf_colors.HexColor(COLORES['azul_claro'])),
                 ('FONTNAME', (0, 6), (-1, 6), 'Helvetica-Bold'),
