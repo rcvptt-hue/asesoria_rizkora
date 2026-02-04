@@ -241,7 +241,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
             ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
             ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.black),
             ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white),
-            ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.white),
+            ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
@@ -274,7 +274,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
             ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
             ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
             ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white),
-            ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.white),
+            ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
@@ -303,11 +303,11 @@ def generar_pdf_asesoria_mejorado(datos_completos):
             <para alignment="center" backColor="{flujo.get('color_estado', '#CCCCCC')}" 
                   leftIndent="10" rightIndent="10" spaceBefore="5" spaceAfter="5">
             <font size="14" color="white"><b>{semaforo} ESTADO FINANCIERO: {estado}</b></font><br/>
-            <font size="10" color="white">{mensaje_estado}</font>
+            <font size="10" color="white">{mensaje_estado}</font><br/>
             </para>
             """
             story.append(Paragraph(estado_text, styles['Normal']))
-            story.append(Spacer(1, 0.5*inch))
+            story.append(Spacer(2, 0.5*inch))
             
             # Tabla de Flujo Financiero
             story.append(Paragraph("2.1 Resumen del Flujo Mensual", subsection_style))
