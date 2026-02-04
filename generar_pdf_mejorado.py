@@ -239,7 +239,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
         cliente_table = Table(cliente_data, colWidths=[2.5*inch, 3.5*inch])
         cliente_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), pdf_colors.HexColor(COLORES['azul_principal'])),
-            ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.black),
+            ('TEXTCOLOR', (0, 0), (-1, 0), pdf_colors.white),
             ('BACKGROUND', (0, 1), (0, -1), pdf_colors.white),
             ('TEXTCOLOR', (0, 1), (0, -1), pdf_colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
@@ -343,7 +343,7 @@ def generar_pdf_asesoria_mejorado(datos_completos):
             ]))
             
             story.append(estado_table)
-            story.append(Spacer(1, 0.5*inch))
+            story.append(Spacer(1, 0.2*inch))
             
             # Tabla de Flujo Financiero
             story.append(Paragraph("2.1 Resumen del Flujo Mensual", subsection_style))
