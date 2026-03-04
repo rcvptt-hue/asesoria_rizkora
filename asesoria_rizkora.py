@@ -45,6 +45,207 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+st.markdown("""
+<style>
+
+/* Oculta botón de menú de opciones */
+div[data-testid="stToolbar"] button:nth-child(2) {
+    display: none;
+}
+
+/* Footer */
+footer {display:none;}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+
+/* ================================
+   FORZAR COLOR DE HEADERS
+================================= */
+
+/* Título principal */
+h1 {
+    color: #fff59d !important;
+}
+
+/* Header */
+h2 {
+    color: #fff59d !important;
+}
+
+/* Subheader */
+h3 {
+    color: #fff59d !important;
+}
+
+/* Asegurar que Streamlit no lo sobreescriba */
+[data-testid="stMarkdownContainer"] h1,
+[data-testid="stMarkdownContainer"] h2,
+[data-testid="stMarkdownContainer"] h3 {
+    color: #fff59d !important;
+}
+
+/* Incluso si hay spans internos */
+h1 span, h2 span, h3 span {
+    color: #fff59d !important;
+}
+
+</style>
+""", unsafe_allow_html=True)
+st.markdown(
+    """
+    <style>
+
+        /* ================================
+           FONDO GENERAL
+        ================================= */
+        .stApp {
+            background-color: #064c78;
+        }
+
+        section[data-testid="stSidebar"] {
+            background-color: #053a5c;
+        }
+
+        /* ================================
+           TEXTO GENERAL
+        ================================= */
+        .stMarkdown,
+        p, span, label {
+            color: #ffffff !important;
+        }
+
+        /* ================================
+           SELECTBOX GLOBAL (FUERA Y DENTRO DE FORM)
+        ================================= */
+
+        /* Caja visible */
+        div[data-baseweb="select"] {
+            background-color: #ffffff !important;
+        }
+
+        div[data-baseweb="select"] * {
+            color: #000000 !important;
+        }
+
+        /* Opciones desplegadas */
+        ul[role="listbox"] li {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        /* ================================
+           INPUTS (DENTRO Y FUERA DE FORM)
+        ================================= */
+        input, textarea {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        /* ================================
+           BOTONES NORMALES
+        ================================= */
+        .stButton>button {
+            background-color: #053a5c !important;
+            color: #ffffff !important;
+            border: 1px solid #053a5c !important;
+        }
+
+        .stButton>button:hover {
+            background-color: #032a42 !important;
+            border: 1px solid #032a42 !important;
+            color: #ffffff !important;
+        }
+
+        /* ================================
+           BOTONES DENTRO DE FORM
+        ================================= */
+        button[type="submit"] {
+            background-color: #053a5c !important;
+            color: #ffffff !important;
+            border: 1px solid #053a5c !important;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #032a42 !important;
+            border: 1px solid #032a42 !important;
+            color: #ffffff !important;
+        }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+st.markdown(
+    """
+    <style>
+
+        /* ================================
+           BOTONES st.form_submit_button
+        ================================= */
+
+        div[data-testid="stFormSubmitButton"] button {
+            background-color: #053a5c !important;
+            color: #ffffff !important;
+            border: 1px solid #053a5c !important;
+        }
+
+        div[data-testid="stFormSubmitButton"] button:hover {
+            background-color: #032a42 !important;
+            border: 1px solid #032a42 !important;
+            color: #ffffff !important;
+        }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+# ================================
+# LOGO RIZKORA
+# ================================
+st.image("logo_vectorizado_2.png", width=250)
+
+# ================================
+# 🔐 LOGIN CON SECRETS (Streamlit Cloud)
+# ================================
+
+def login():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if not st.session_state.authenticated:
+
+        st.title("🔐 Acceso Gestor Rizkora")
+
+        usuario_input = st.text_input("Usuario")
+        password_input = st.text_input("Contraseña", type="password")
+
+        if st.button("Ingresar"):
+            if (
+                usuario_input == st.secrets["usuario"]
+                and password_input == st.secrets["password"]
+            ):
+                st.session_state.authenticated = True
+                st.success("Acceso concedido")
+                st.rerun()
+            else:
+                st.error("Usuario o contraseña incorrectos")
+
+        st.stop()  # 🔴 Detiene todo si no está autenticado
+
+
+login()
+# ================================
+# 🚪 LOGOUT
+# ================================
+if st.sidebar.button("Cerrar sesión"):
+    st.session_state.authenticated = False
+    st.rerun()
+
 # CSS personalizado para alinear botones de navegación
 st.markdown("""
 <style>
@@ -2215,6 +2416,7 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
