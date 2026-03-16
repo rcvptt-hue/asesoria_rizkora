@@ -443,9 +443,14 @@ def exportar_json():
     
     # Función auxiliar para convertir objetos no serializables
     def convertir_a_serializable(obj):
-        """Convierte objetos date/datetime a string"""
-        if isinstance(obj, (date, datetime)):
-            return obj.strftime("%d/%m/%Y") if isinstance(obj, date) else obj.strftime("%d/%m/%Y %H:%M:%S")
+    """Convierte objetos date/datetime/time a string"""
+    from datetime import time as time_type
+        if isinstance(obj, datetime):
+            return obj.strftime("%d/%m/%Y %H:%M:%S")
+        elif isinstance(obj, time_type):
+            return obj.strftime("%H:%M:%S")
+        elif isinstance(obj, date):
+            return obj.strftime("%d/%m/%Y")
         elif isinstance(obj, dict):
             return {k: convertir_a_serializable(v) for k, v in obj.items()}
         elif isinstance(obj, list):
