@@ -139,7 +139,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
 
     ws1.column_dimensions["A"].width = 30
     ws1.column_dimensions["B"].width = 28
-    ws1.column_dimensions["C"].width = 4
+    ws1.column_dimensions["C"].width = 28
     ws1.column_dimensions["D"].width = 28
     ws1.column_dimensions["E"].width = 28
 
@@ -343,7 +343,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         c14.alignment = _align(h="center")
         # Promedio
         c15 = ws.cell(row=row, column=15,
-                      value=f"=IFERROR(N{row}/COUNTIF(B{row}:M{row},\"<>0\"),0)")
+                      value=f"=IFERROR(N{row}/COUNTIF(B{row}:M{row},\"<> \"),0)")
         c15.font = _ft(bold=True); c15.fill = _fill(VERDE_CL)
         c15.border = _border(); c15.number_format = FMT_PESOS
         c15.alignment = _align(h="center")
@@ -365,7 +365,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         c14.font = _ft(bold=bold, color=fc); c14.fill = _fill(bg_row)
         c14.border = _border(); c14.number_format = num_fmt or FMT_PESOS
         c14.alignment = _align(h="center")
-        c15 = ws.cell(row=row, column=15, value=f"=IFERROR(N{row}/12,0)")
+        c15 = ws.cell(row=row, column=15, value=f"=SUM(B{row}:M{row})")
         c15.font = _ft(bold=bold, color=fc); c15.fill = _fill(bg_row)
         c15.border = _border(); c15.number_format = num_fmt or FMT_PESOS
         c15.alignment = _align(h="center")
@@ -383,7 +383,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
             cell.border = _border(); cell.number_format = FMT_PESOS
             cell.alignment = _align(h="center")
         for col, formula in [(14, f"=SUM(B{row}:M{row})"),
-                              (15, f"=IFERROR(N{row}/12,0)")]:
+                              (15, f"=SUM(B{row}:M{row})")]:
             cell = ws.cell(row=row, column=col, value=formula)
             cell.font = _ft(bold=True, color=fc); cell.fill = _fill(bg_total)
             cell.border = _border(); cell.number_format = FMT_PESOS
@@ -501,7 +501,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         cell.font = _ft(bold=True, sz=11, color=BLANCO); cell.fill = _fill(VERDE)
         cell.border = _border(); cell.number_format = FMT_PESOS
         cell.alignment = _align(h="center")
-    for col, fml in [(14, f"=SUM(B{row}:M{row})"), (15, f"=IFERROR(N{row}/12,0)")]:
+    for col, fml in [(14, f"=SUM(B{row}:M{row})"), (15, f"=SUM(B{row}:M{row})")]:
         cell = ws2.cell(row=row, column=col, value=fml)
         cell.font = _ft(bold=True, color=BLANCO); cell.fill = _fill(VERDE)
         cell.border = _border(); cell.number_format = FMT_PESOS
@@ -574,6 +574,8 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         _hdr(ws3, r3, 1+j, h, sz=9)
     r3 += 1
 
+    # ── KPI principal rows ────────────────────────────────────────────────
+    # Nota: variables+deudas juntos = 30% (regla 50-30-20)
     kpis = [
         ("Ingreso mensual promedio",
          f"='📅 Registro Mensual'!O{ING_TOTAL}",
@@ -582,28 +584,23 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
          "Base del análisis", "Actualizar mensualmente"),
         ("% Gastos fijos / ingreso",
          f"=IFERROR('📅 Registro Mensual'!O{GF_TOTAL}/'📅 Registro Mensual'!O{ING_TOTAL},0)",
-         0.40, FMT_PCT,
+         0.50, FMT_PCT,
          f'=IF(B{r3+1}<=C{r3+1},"✅ Saludable","🔴 Revisar")',
-         "Ideal ≤ 40% del ingreso", "Reducir gastos fijos si supera 50%"),
-        ("% Gastos variables / ingreso",
-         f"=IFERROR('📅 Registro Mensual'!O{GV_TOTAL}/'📅 Registro Mensual'!O{ING_TOTAL},0)",
-         0.20, FMT_PCT,
-         f'=IF(B{r3+2}<=C{r3+2},"✅ Saludable","⚠️ Atención")',
-         "Ideal ≤ 20% del ingreso", "Revisar gastos discrecionales"),
-        ("DTI – Deudas / Ingreso",
-         f"=IFERROR('📅 Registro Mensual'!O{DD_TOTAL}/'📅 Registro Mensual'!O{ING_TOTAL},0)",
+         "Ideal ≤ 50% del ingreso", "Reducir gastos fijos si supera 50%"),
+        ("% Gastos variables + Deudas / ingreso",
+         f"=IFERROR(('📅 Registro Mensual'!O{GV_TOTAL}+'📅 Registro Mensual'!O{DD_TOTAL})/'📅 Registro Mensual'!O{ING_TOTAL},0)",
          0.30, FMT_PCT,
-         f'=IF(B{r3+3}<=C{r3+3},"✅ Saludable","🔴 Revisar")',
-         "Ideal ≤ 30% del ingreso", "Plan de liquidación acelerada"),
+         f'=IF(B{r3+2}<=C{r3+2},"✅ Saludable","⚠️ Atención")',
+         "Ideal ≤ 30% del ingreso", "Revisar gastos y deudas"),
         ("% Inversión / ingreso",
          f"=IFERROR('📅 Registro Mensual'!O{INV_ROW}/'📅 Registro Mensual'!O{ING_TOTAL},0)",
-         0.10, FMT_PCT,
-         f'=IF(B{r3+4}>=C{r3+4},"✅ Saludable","⚠️ Incrementar")',
-         "Mínimo 10% del ingreso", "Automatizar aportación mensual"),
+         0.20, FMT_PCT,
+         f'=IF(B{r3+3}>=C{r3+3},"✅ Saludable","⚠️ Incrementar")',
+         "Mínimo 20% del ingreso", "Automatizar aportación mensual"),
         ("Flujo libre mensual promedio",
          f"='📅 Registro Mensual'!O{FL_ROW}",
          0, FMT_PESOS,
-         f'=IF(B{r3+5}>0,"✅ Positivo","🔴 Déficit")',
+         f'=IF(B{r3+4}>0,"✅ Positivo","🔴 Déficit")',
          "Debe ser positivo", "Revisar gastos urgentemente"),
     ]
 
@@ -630,7 +627,35 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         c6.font = _ft(sz=9, italic=True, color=VERDE); c6.fill = _fill(bg)
         c6.border = _border(); c6.alignment = _align(h="left", wrap=True)
 
-    r3 += len(kpis) + 2
+    # ── Filas de subcampos (debajo de variables+deudas, con sangría e itálicas) ──
+    # Se insertan justo después del KPI de variables+deudas (índice 2 → r3+2)
+    # Para no romper referencias, se agregan al final del bloque de KPIs
+    r3 += len(kpis)
+
+    subcampos = [
+        ("   ↳  Otros gastos variables",
+         f"=IFERROR('📅 Registro Mensual'!O{GV_TOTAL}/'📅 Registro Mensual'!O{ING_TOTAL},0)"),
+        ("   ↳  Deudas / compromisos",
+         f"=IFERROR('📅 Registro Mensual'!O{DD_TOTAL}/'📅 Registro Mensual'!O{ING_TOTAL},0)"),
+    ]
+    for j, (lbl, formula) in enumerate(subcampos):
+        rs = r3 + j
+        ws3.row_dimensions[rs].height = 19
+        bg = GRIS_T
+        # Col 1: etiqueta sangrada itálica
+        c1 = ws3.cell(row=rs, column=1, value=lbl)
+        c1.font = _ft(sz=9, italic=True, color="666666"); c1.fill = _fill(bg)
+        c1.border = _border(); c1.alignment = _align(h="left")
+        # Col 2: valor (porcentaje)
+        c2 = ws3.cell(row=rs, column=2, value=formula)
+        c2.font = _ft(sz=9, italic=True, color="666666"); c2.fill = _fill(bg)
+        c2.border = _border(); c2.number_format = FMT_PCT; c2.alignment = _align(h="center")
+        # Cols 3-6: vacías (sin estado, interpretación ni acción)
+        for col in range(3, 7):
+            cx = ws3.cell(row=rs, column=col)
+            cx.fill = _fill(bg); cx.border = _border()
+
+    r3 += len(subcampos) + 2
 
     # Notas de seguimiento mensual
     _sec_hdr(ws3, r3, "NOTAS DE SEGUIMIENTO MENSUAL (asesor)", merge_to="F")
