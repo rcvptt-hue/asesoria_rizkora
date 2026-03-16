@@ -35,6 +35,7 @@ from modulo_financiero import (
     formatear_moneda  # Ya existe, pero usar la del módulo
 )
 from generar_pdf_mejorado import generar_pdf_asesoria_mejorado
+from generar_excel_cliente import generar_excel_seguimiento
 # ================================
 # CONFIGURACIÓN DE LA APP
 # ================================
@@ -2330,8 +2331,8 @@ elif st.session_state.step == 9:
         st.markdown("---")
         st.subheader("💾 Descargar Reporte")
         
-        col1, col2, col3 = st.columns(3)
-        
+        col1, col2, col3, col4 = st.columns(4)
+ 
         with col1:
             json_data = exportar_json()
             st.download_button(
@@ -2342,7 +2343,7 @@ elif st.session_state.step == 9:
                 use_container_width=True,
                 key="download_json_final"
             )
-        
+ 
         with col2:
             pdf_buffer = generar_pdf_asesoria_mejorado(st.session_state.datos)
             if pdf_buffer:
@@ -2350,11 +2351,11 @@ elif st.session_state.step == 9:
                     label="📑 Descargar PDF",
                     data=pdf_buffer,
                     file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                    mime="application/pdf",
-                    use_container_width=True,
-                    key="download_pdf_final"
-                )
-        
+                        mime="application/pdf",
+                        use_container_width=True,
+                        key="download_pdf_final"
+                    )
+     
         with col3:
             grafico_buffer = generar_graficos_necesidades()
             if grafico_buffer:
@@ -2366,7 +2367,19 @@ elif st.session_state.step == 9:
                     use_container_width=True,
                     key="download_grafico_final"
                 )
-        
+     
+        with col4:
+            with st.spinner("Preparando Excel..."):
+                excel_buffer = generar_excel_seguimiento(st.session_state.datos)
+            nombre_cliente = st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')
+            st.download_button(
+                label="📊 Descargar Excel Seguimiento",
+                data=excel_buffer,
+                file_name=f"seguimiento_{nombre_cliente}_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                key="download_excel_final"
+            )        
         # Botón para nueva asesoría
         st.markdown("---")
         st.subheader("🔄 Nueva Asesoría")
