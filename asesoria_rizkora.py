@@ -368,9 +368,13 @@ def guardar_asesoria_sheets(datos_completos):
             'Inversión Mensual Disponible': datos_completos['ingresos'].get('inversion_mensual', 0),
             'Necesidad Principal': necesidades['principal'].upper(),
             'Monto Protección': necesidades['montos']['proteccion'],
+            'Monto Fondo Emergencia': necesidades['montos']['fondo_emergencia'],
             'Monto Retiro': necesidades['montos']['retiro'],
             'Monto Educación': necesidades['montos']['educacion'],
             'Monto Ahorro/Proyecto': necesidades['montos']['ahorro'],
+            'Tiene Seguro Vida': datos_completos['proteccion'].get('tiene_seguro_vida', 'No'),
+            'Tiene GMM': datos_completos['proteccion'].get('tiene_gmm', 'No'),
+            'Tiene Auto': datos_completos['proteccion'].get('tiene_auto', 'No'),
             'Tiene Pareja': datos_completos['perfil_familiar'].get('tiene_pareja', 'No'),
             'Tiene Hijos': datos_completos['perfil_familiar'].get('tiene_hijos', 'No'),
             'Num Hijos': datos_completos['perfil_familiar'].get('num_hijos', 0),
@@ -764,36 +768,52 @@ def generar_graficos_necesidades():
         return None
 
 def detectar_necesidades():
-    """Detecta y prioriza necesidades financieras"""
-    necesidades = {
-        'proteccion': 0,
-        'retiro': 0,
-        'educacion': 0,
-        'ahorro': 0
+    """Detecta y prioriza necesidades financieras con lógica inteligente."""
+    prot_datos = st.session_state.datos.get('proteccion', {})
+    ret_datos  = st.session_state.datos.get('retiro', {})
+    edu_datos  = st.session_state.datos.get('educacion', {})
+    aho_datos  = st.session_state.datos.get('ahorro', {})
+
+    montos = {
+        'proteccion':       0,
+        'fondo_emergencia': 0,
+        'retiro':           0,
+        'educacion':        0,
+        'ahorro':           0,
     }
-    
-    # Protección (si tiene dependientes)
-    if st.session_state.datos['perfil_familiar'].get('tiene_pareja') or \
-       st.session_state.datos['perfil_familiar'].get('tiene_hijos') or \
-       st.session_state.datos['perfil_familiar'].get('tiene_dependientes'):
-        necesidades['proteccion'] = st.session_state.datos['proteccion'].get('monto_proteccion_sugerido', 0)
-    
-    # Retiro
-    necesidades['retiro'] = st.session_state.datos['retiro'].get('monto_total_retiro', 0)
-    
-    # Educación
-    necesidades['educacion'] = st.session_state.datos['educacion'].get('monto_total_educacion', 0)
-    
-    # Ahorro/Proyecto
-    necesidades['ahorro'] = st.session_state.datos['ahorro'].get('inversion_requerida', 0)
-    
-    # Ordenar por prioridad (mayor monto)
-    necesidades_ordenadas = sorted(necesidades.items(), key=lambda x: x[1], reverse=True)
-    
+
+    if prot_datos.get('aplica'):
+        montos['proteccion'] = prot_datos.get('monto_proteccion_sugerido', 0)
+
+    montos['fondo_emergencia'] = prot_datos.get('fondo_emergencia_sugerido', 0)
+    montos['retiro']           = ret_datos.get('monto_total_retiro', 0)
+    montos['educacion']        = edu_datos.get('monto_total_educacion', 0)
+
+    if aho_datos.get('tiene_proyecto') == "Sí":
+        montos['ahorro'] = aho_datos.get('inversion_requerida', 0)
+
+    tiene_seguro_vida = prot_datos.get('tiene_seguro_vida') == "Sí"
+    prioridades = []
+
+    if prot_datos.get('aplica') and not tiene_seguro_vida:
+        prioridades.append(('proteccion', montos['proteccion']))
+    if montos['fondo_emergencia'] > 0:
+        prioridades.append(('fondo_emergencia', montos['fondo_emergencia']))
+    if prot_datos.get('aplica') and tiene_seguro_vida:
+        prioridades.append(('proteccion', montos['proteccion']))
+    if montos['retiro'] > 0:
+        prioridades.append(('retiro', montos['retiro']))
+    if montos['educacion'] > 0:
+        prioridades.append(('educacion', montos['educacion']))
+    if montos['ahorro'] > 0:
+        prioridades.append(('ahorro', montos['ahorro']))
+
+    principal = prioridades[0][0] if prioridades else 'ninguna'
+
     return {
-        'principal': necesidades_ordenadas[0][0] if necesidades_ordenadas[0][1] > 0 else 'ninguna',
-        'montos': necesidades,
-        'prioridades': necesidades_ordenadas
+        'principal':   principal,
+        'montos':      montos,
+        'prioridades': prioridades,
     }
 
 # ================================
@@ -1275,9 +1295,9 @@ elif st.session_state.step == 3:
         
         st.markdown("---")
         
-        # SECCIÓN 4: DEUDAS
-        st.subheader("💳 Pagos de Deudas Mensuales")
-        st.write("Pagos mínimos o mensuales de tus deudas")
+        # SECCIÓN 4: OTROS GASTOS Y DEUDAS (dentro de variables)
+        st.subheader("💳 Otros Gastos y Deudas Mensuales")
+        st.write("Pagos de deudas y compromisos financieros recurrentes")
         
         col1, col2 = st.columns(2)
         
@@ -1287,14 +1307,14 @@ elif st.session_state.step == 3:
             pago_tarjetas = st.number_input("Tarjetas de crédito", min_value=0.0,
                 value=float(deudas_previas.get('tarjetas', 0)), step=500.0, format="%.2f")
             
-            pago_prestamos = st.number_input("Préstamos personales", min_value=0.0,
+            pago_prestamos = st.number_input("Préstamos personales / nómina", min_value=0.0,
                 value=float(deudas_previas.get('prestamos', 0)), step=500.0, format="%.2f")
         
         with col2:
             pago_credito_auto = st.number_input("Crédito automotriz", min_value=0.0,
                 value=float(deudas_previas.get('auto', 0)), step=500.0, format="%.2f")
             
-            pago_otras_deudas = st.number_input("Otras deudas", min_value=0.0,
+            pago_otras_deudas = st.number_input("Otras deudas / compromisos", min_value=0.0,
                 value=float(deudas_previas.get('otras', 0)), step=100.0, format="%.2f")
         
         st.markdown("---")
@@ -1407,15 +1427,23 @@ elif st.session_state.step == 3:
             
             import pandas as pd
             desglose_data = {
-                'Categoría': ['Gastos Fijos', 'Gastos Variables', 'Deudas', 'Flujo Libre'],
+                'Categoría': [
+                    'Gastos Fijos',
+                    'Gastos Variables y Deudas',
+                    '   ↳ Otros variables',
+                    '   ↳ Deudas / compromisos',
+                    'Flujo Libre'
+                ],
                 'Monto': [
                     formatear_moneda(flujo['gastos_fijos']),
+                    formatear_moneda(flujo['gastos_variables'] + flujo['deudas']),
                     formatear_moneda(flujo['gastos_variables']),
                     formatear_moneda(flujo['deudas']),
                     formatear_moneda(flujo['flujo_libre'])
                 ],
                 '% Ingreso': [
                     f"{flujo['porcentaje_gastos_fijos']:.1f}%",
+                    f"{flujo['porcentaje_gastos_variables'] + flujo['porcentaje_deudas']:.1f}%",
                     f"{flujo['porcentaje_gastos_variables']:.1f}%",
                     f"{flujo['porcentaje_deudas']:.1f}%",
                     f"{flujo['porcentaje_flujo']:.1f}%"
@@ -1491,7 +1519,83 @@ elif st.session_state.step == 3:
             3. Buscar formas de aumentar ingresos
             4. Estabilizar tu situación financiera
             """)
-        
+
+        st.markdown("---")
+
+        # REGLA 50-30-20
+        st.subheader("📐 Análisis de tu Presupuesto · Regla 50 / 30 / 20")
+        st.write("""
+        Esta regla es una guía práctica para distribuir tu ingreso de forma saludable:
+        - **50% Necesidades** — gastos fijos indispensables (vivienda, alimentación, transporte, colegiaturas, mensualidades)
+        - **30% Deseos y Deudas** — gastos variables + pagos de deudas/compromisos (salidas, ropa, café, tarjetas, préstamos)
+        - **20% Ahorro e Inversión** — retiro, fondo de emergencia, inversiones
+        """)
+
+        ingreso_5030 = flujo['ingreso_mensual']
+        meta_50 = ingreso_5030 * 0.50
+        meta_30 = ingreso_5030 * 0.30
+        meta_20 = ingreso_5030 * 0.20
+
+        real_necesidades = flujo['gastos_fijos']
+        real_deseos      = flujo['gastos_variables'] + flujo['deudas']
+        real_ahorro      = capacidad.get('ahorro_sugerido', 0)
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            delta_n = real_necesidades - meta_50
+            st.metric(
+                "🏠 Necesidades (50%)",
+                formatear_moneda(meta_50),
+                f"Real: {formatear_moneda(real_necesidades)} ({'↑' if delta_n > 0 else '↓'}{formatear_moneda(abs(delta_n))})",
+                delta_color="inverse" if delta_n > 0 else "normal"
+            )
+        with col2:
+            delta_d = real_deseos - meta_30
+            st.metric(
+                "🛍️ Deseos y Deudas (30%)",
+                formatear_moneda(meta_30),
+                f"Real: {formatear_moneda(real_deseos)} ({'↑' if delta_d > 0 else '↓'}{formatear_moneda(abs(delta_d))})",
+                delta_color="inverse" if delta_d > 0 else "normal"
+            )
+        with col3:
+            delta_a = meta_20 - real_ahorro
+            st.metric(
+                "💎 Ahorro e Inversión (20%)",
+                formatear_moneda(meta_20),
+                f"Disponible: {formatear_moneda(real_ahorro)} ({'↓ falta' if delta_a > 0 else '✅ cubre'})",
+                delta_color="inverse" if delta_a > 0 else "normal"
+            )
+
+        with st.expander("Ver equivalencias con tu sueldo"):
+            st.markdown(f"""
+            Con un ingreso mensual de **{formatear_moneda(ingreso_5030)}**:
+
+            | Categoría | Meta ideal | Lo que destinas hoy |
+            |-----------|-----------|---------------------|
+            | 🏠 **Necesidades (50%)** | {formatear_moneda(meta_50)} | {formatear_moneda(real_necesidades)} |
+            | 🛍️ **Deseos y Deudas (30%)** | {formatear_moneda(meta_30)} | {formatear_moneda(real_deseos)} |
+            | &nbsp;&nbsp;&nbsp;↳ *Otros variables* | — | *{formatear_moneda(flujo['gastos_variables'])}* |
+            | &nbsp;&nbsp;&nbsp;↳ *Deudas / compromisos* | — | *{formatear_moneda(flujo['deudas'])}* |
+            | 💎 **Ahorro e Inversión (20%)** | {formatear_moneda(meta_20)} | {formatear_moneda(real_ahorro)} |
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+        st.subheader("💵 Disponibilidad Económica Real")
+        flujo_libre_real = flujo['flujo_libre']
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Ingreso mensual", formatear_moneda(ingreso_5030))
+        with col2:
+            st.metric("Total de gastos actuales", formatear_moneda(flujo['gastos_totales']))
+        with col3:
+            st.metric("Disponible para invertir", formatear_moneda(flujo_libre_real),
+                      delta="Para distribuir entre tus metas" if flujo_libre_real > 0 else "Sin disponibilidad",
+                      delta_color="normal" if flujo_libre_real > 0 else "inverse")
+        if flujo_libre_real > 0:
+            st.success(f"✅ Tienes **{formatear_moneda(flujo_libre_real)}** disponibles cada mes para trabajar en tus metas financieras.")
+        else:
+            st.error("⚠️ Tu flujo libre es negativo. Es necesario ajustar gastos antes de planear inversiones.")
+
         st.markdown("---")
         st.subheader("📄 Generar Reporte de Análisis Financiero")
 
@@ -1675,32 +1779,100 @@ elif st.session_state.step == 4:
                                             value=st.session_state.datos['proteccion'].get('responsable2', ''))
             
             presupuesto_mensual = st.number_input(
-                "¿Cuál es el presupuesto mensual requerido para mantener a tu familia?*",
+                "¿Cuál es el monto mensual necesario para seguir cubriendo tus necesidades o las de tu familia en caso de presentarse una eventualidad?*",
                 min_value=0.0,
                 value=float(st.session_state.datos['proteccion'].get('presupuesto_mensual', 0)),
                 step=1000.0,
                 format="%.2f"
             )
-            
+
+            st.markdown("---")
+            st.subheader("🛡️ Coberturas Actuales")
+
+            tiene_seguro_vida = st.radio(
+                "¿Cuentas actualmente con algún seguro de vida y/o protección contra invalidez?*",
+                ["Sí", "No"],
+                index=0 if st.session_state.datos['proteccion'].get('tiene_seguro_vida') == "Sí" else 1,
+                key="radio_seguro_vida"
+            )
+
+            tiene_gmm = st.radio(
+                "¿Cuentas con póliza de Gastos Médicos Mayores (GMM)?*",
+                ["Sí", "No"],
+                index=0 if st.session_state.datos['proteccion'].get('tiene_gmm') == "Sí" else 1,
+                key="radio_gmm"
+            )
+
+            deducible_gmm = 0.0
+            coaseguro_gmm = 0.0
+            if tiene_gmm == "Sí":
+                col1, col2 = st.columns(2)
+                with col1:
+                    deducible_gmm = st.number_input(
+                        "Monto del deducible ($)",
+                        min_value=0.0,
+                        value=float(st.session_state.datos['proteccion'].get('deducible_gmm', 0)),
+                        step=500.0, format="%.2f"
+                    )
+                with col2:
+                    coaseguro_gmm = st.number_input(
+                        "Monto del coaseguro ($) — máx. $10,000",
+                        min_value=0.0, max_value=10000.0,
+                        value=float(min(st.session_state.datos['proteccion'].get('coaseguro_gmm', 0), 10000)),
+                        step=500.0, format="%.2f"
+                    )
+
+            tiene_auto = st.radio(
+                "¿Cuentas con automóvil propio?*",
+                ["Sí", "No"],
+                index=0 if st.session_state.datos['proteccion'].get('tiene_auto') == "Sí" else 1,
+                key="radio_auto"
+            )
+
+            valor_auto = 0.0
+            if tiene_auto == "Sí":
+                valor_auto = st.number_input(
+                    "Valor aproximado de tu automóvil ($)",
+                    min_value=0.0,
+                    value=float(st.session_state.datos['proteccion'].get('valor_auto', 0)),
+                    step=10000.0, format="%.2f"
+                )
+
             if presupuesto_mensual > 0:
-                presupuesto_anual = presupuesto_mensual * 12
-                monto_proteccion = presupuesto_anual * 10  # 10 años de protección
-                
+                monto_proteccion = presupuesto_mensual * 24
+                ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
+                coaseguro_topado  = min(coaseguro_gmm, 10000.0)
+                fondo_emergencia  = (
+                    deducible_gmm + coaseguro_topado
+                    + (valor_auto * 0.10)
+                    + (ingreso_mensual_fe * 3)
+                    + (0 if tiene_gmm == "Sí" else 50000.0)
+                )
+
                 st.markdown("---")
                 st.subheader("📊 Cálculo de Protección")
-                
+
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.metric("Presupuesto Mensual", formatear_moneda(presupuesto_mensual))
+                    st.metric("Monto Mensual Indicado", formatear_moneda(presupuesto_mensual))
                 with col2:
-                    st.metric("Presupuesto Anual", formatear_moneda(presupuesto_anual))
+                    st.metric("Protección Mínima Sugerida (24 meses)", formatear_moneda(monto_proteccion))
                 with col3:
-                    st.metric("Protección Sugerida (10 años)", formatear_moneda(monto_proteccion))
-                
+                    st.metric("Fondo de Emergencia Sugerido", formatear_moneda(fondo_emergencia))
+
+                with st.expander("Ver desglose del Fondo de Emergencia"):
+                    st.write(f"- Deducible GMM: **{formatear_moneda(deducible_gmm)}**")
+                    st.write(f"- Coaseguro GMM (topado a $10,000): **{formatear_moneda(coaseguro_topado)}**")
+                    st.write(f"- 10% del valor del auto: **{formatear_moneda(valor_auto * 0.10)}**")
+                    st.write(f"- 3 meses de ingreso: **{formatear_moneda(ingreso_mensual_fe * 3)}**")
+                    if tiene_gmm == "No":
+                        st.write("- Reserva médica (sin GMM): **$50,000.00**")
+                    st.write(f"**Total sugerido: {formatear_moneda(fondo_emergencia)}**")
+
                 st.success(f"""
                 💡 **Recomendación de Protección:**
-                Se sugiere una protección de **{formatear_moneda(monto_proteccion)}** para cubrir 10 años 
-                del presupuesto familiar en caso de contingencia.
+                Se sugiere un seguro de vida de al menos **{formatear_moneda(monto_proteccion)}**
+                (24 meses de tu necesidad mensual indicada).
                 """)
             
             col1, col2 = st.columns(2)
@@ -1716,7 +1888,14 @@ elif st.session_state.step == 4:
                 elif not responsable1.strip():
                     st.error("❌ Debe indicar al menos un responsable")
                 else:
-                    # Guardar datos
+                    ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
+                    coaseguro_topado  = min(coaseguro_gmm, 10000.0)
+                    fondo_emergencia  = (
+                        deducible_gmm + coaseguro_topado
+                        + (valor_auto * 0.10)
+                        + (ingreso_mensual_fe * 3)
+                        + (0 if tiene_gmm == "Sí" else 50000.0)
+                    )
                     st.session_state.datos['proteccion'] = {
                         'aplica': True,
                         'reflexion': reflexion,
@@ -1724,9 +1903,15 @@ elif st.session_state.step == 4:
                         'responsable2': responsable2.strip() if responsable2 else '',
                         'presupuesto_mensual': presupuesto_mensual,
                         'presupuesto_anual': presupuesto_mensual * 12,
-                        'monto_proteccion_sugerido': presupuesto_mensual * 12 * 10
+                        'monto_proteccion_sugerido': presupuesto_mensual * 24,
+                        'tiene_seguro_vida': tiene_seguro_vida,
+                        'tiene_gmm': tiene_gmm,
+                        'deducible_gmm': deducible_gmm,
+                        'coaseguro_gmm': coaseguro_gmm,
+                        'tiene_auto': tiene_auto,
+                        'valor_auto': valor_auto,
+                        'fondo_emergencia_sugerido': fondo_emergencia,
                     }
-                    
                     st.success("✅ Protección financiera configurada")
                     navegar_a_paso(5)
 
@@ -1885,11 +2070,8 @@ elif st.session_state.step == 6:
             
             st.info(f"""
             💡 **Proyección de Retiro:**
-            - Te faltan **{anos_para_retiro} años** para retirarte
-            - Vivirás aproximadamente **{anos_en_retiro} años** en retiro
-            - Necesitarás un total de **{formatear_moneda(monto_total_retiro)}**
             - Se sugiere ahorrar **{formatear_moneda(ahorro_mensual_retiro)}** mensuales
-            
+
             *Nota: Este es un cálculo simplificado. Se recomienda una asesoría detallada considerando inflación y rendimientos.*
             """)
         
@@ -2064,7 +2246,10 @@ elif st.session_state.step == 8:
     necesidad_principal = necesidades['principal']
     if necesidad_principal == 'proteccion':
         st.error("🛡️ **PROTECCIÓN FINANCIERA**")
-        st.write("Tu familia necesita protección en caso de contingencia.")
+        st.write("Tu familia necesita protección en caso de contingencia. Esta es la prioridad #1.")
+    elif necesidad_principal == 'fondo_emergencia':
+        st.warning("🚨 **FONDO DE EMERGENCIA**")
+        st.write("Constituir un fondo de emergencia es la prioridad antes de cualquier inversión.")
     elif necesidad_principal == 'retiro':
         st.warning("👴 **RETIRO**")
         st.write("Es prioritario planificar tu retiro para asegurar tu futuro.")
@@ -2076,68 +2261,60 @@ elif st.session_state.step == 8:
         st.write("Tu proyecto requiere un plan de ahorro estructurado.")
     else:
         st.info("ℹ️ No se detectaron necesidades específicas prioritarias.")
-    
+
     st.markdown("---")
-    
+
     # Tabla de montos
-    st.subheader("💰 Montos Estimados por Pilar")
-    
+    st.subheader("💰 Estimados por Pilar")
+
+    prot_datos = st.session_state.datos.get('proteccion', {})
+    tiene_seguro_vida = prot_datos.get('tiene_seguro_vida') == "Sí"
+
     datos_tabla = {
-        'Pilar': ['Protección', 'Retiro', 'Educación', 'Ahorro/Proyecto'],
+        'Pilar': ['🛡️ Protección (vida/invalidez)', '🚨 Fondo de Emergencia',
+                  '👴 Retiro', '🎓 Educación', '💰 Ahorro/Proyecto'],
         'Monto Estimado': [
             formatear_moneda(necesidades['montos']['proteccion']),
+            formatear_moneda(necesidades['montos']['fondo_emergencia']),
             formatear_moneda(necesidades['montos']['retiro']),
             formatear_moneda(necesidades['montos']['educacion']),
-            formatear_moneda(necesidades['montos']['ahorro'])
+            formatear_moneda(necesidades['montos']['ahorro']),
         ],
-        'Prioridad': []
+        'Aportación Mensual': [
+            formatear_moneda(prot_datos.get('presupuesto_mensual', 0)),
+            "—",
+            formatear_moneda(st.session_state.datos['retiro'].get('ahorro_mensual_sugerido', 0)),
+            formatear_moneda(st.session_state.datos['educacion'].get('ahorro_mensual_total', 0)),
+            formatear_moneda(st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0)),
+        ],
+        'Prioridad': [],
     }
-    
-    # Asignar prioridades
-    for pilar in datos_tabla['Pilar']:
-        pilar_key = pilar.lower().replace('/', '').replace(' ', '').replace('proyecto', '')
-        if pilar_key == 'ahorroproyecto':
-            pilar_key = 'ahorro'
-        
-        # Buscar en prioridades
-        encontrado = False
-        for idx, (p, m) in enumerate(necesidades['prioridades'], 1):
-            if p == pilar_key:
-                datos_tabla['Prioridad'].append(f"#{idx}")
-                encontrado = True
-                break
-        
-        if not encontrado:
-            datos_tabla['Prioridad'].append("-")
-    
+
+    keys_pilar = ['proteccion', 'fondo_emergencia', 'retiro', 'educacion', 'ahorro']
+    prio_map = {p: str(i+1) for i, (p, _) in enumerate(necesidades['prioridades'])}
+    for k in keys_pilar:
+        datos_tabla['Prioridad'].append(f"#{prio_map[k]}" if k in prio_map else "—")
+
+    import pandas as pd
     df_resumen = pd.DataFrame(datos_tabla)
     st.dataframe(df_resumen, use_container_width=True, hide_index=True)
-    
+
     st.markdown("---")
-    
+
     # Capacidad vs Necesidad
     st.subheader("📊 Análisis de Capacidad")
-    
+
     inversion_mensual = st.session_state.datos['ingresos'].get('inversion_mensual', 0)
-    ingreso_mensual = st.session_state.datos['ingresos'].get('ingreso_mensual', 0)
-    
-    # Calcular necesidad mensual total estimada
+    ingreso_mensual   = st.session_state.datos['ingresos'].get('ingreso_mensual', 0)
+
     necesidad_mensual_total = 0
-    
-    # Protección (estimado 2-5% del ingreso)
     if necesidades['montos']['proteccion'] > 0:
-        necesidad_mensual_total += ingreso_mensual * 0.03
-    
-    # Retiro
+        necesidad_mensual_total += prot_datos.get('presupuesto_mensual', 0)
     necesidad_mensual_total += st.session_state.datos['retiro'].get('ahorro_mensual_sugerido', 0)
-    
-    # Educación
     necesidad_mensual_total += st.session_state.datos['educacion'].get('ahorro_mensual_total', 0)
-    
-    # Proyecto
     if st.session_state.datos['ahorro'].get('tiene_proyecto') == "Sí":
         necesidad_mensual_total += st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0)
-    
+
     col1, col2, col3 = st.columns(3)
     with col1:
         st.metric("Inversión Mensual Disponible", formatear_moneda(inversion_mensual))
@@ -2145,48 +2322,78 @@ elif st.session_state.step == 8:
         st.metric("Necesidad Mensual Estimada", formatear_moneda(necesidad_mensual_total))
     with col3:
         brecha = inversion_mensual - necesidad_mensual_total
-        st.metric("Brecha", formatear_moneda(brecha), 
+        st.metric("Brecha", formatear_moneda(brecha),
                  delta="Superávit" if brecha >= 0 else "Déficit")
-    
+
     if brecha < 0:
         st.warning(f"""
-        ⚠️ **Atención:** Existe un déficit de {formatear_moneda(abs(brecha))} entre tu capacidad 
-        de inversión y las necesidades detectadas. Se recomienda:
-        - Priorizar las necesidades más urgentes
-        - Considerar aumentar la capacidad de ahorro
-        - Explorar opciones de inversión con mejores rendimientos
+        ⚠️ **Atención:** Existe un déficit de {formatear_moneda(abs(brecha))} entre tu capacidad
+        de inversión y las necesidades detectadas. Se recomienda priorizar las necesidades más urgentes.
         """)
     else:
-        st.success(f"""
-        ✅ **Excelente:** Tu capacidad de inversión cubre las necesidades detectadas con un 
-        margen de {formatear_moneda(brecha)}. Esto permite:
-        - Cubrir todas las necesidades identificadas
-        - Tener un margen de seguridad
-        - Considerar objetivos adicionales
-        """)
-    
+        st.success(f"✅ Tu capacidad de inversión cubre las necesidades detectadas con un margen de {formatear_moneda(brecha)}.")
+
     st.markdown("---")
-    
-    # Recomendaciones
+
+    # Recomendaciones inteligentes
     st.subheader("📋 Recomendaciones para la Asesoría")
-    
+
     recomendaciones = []
-    
+
     if necesidades['montos']['proteccion'] > 0:
-        recomendaciones.append(f"🛡️ **Protección:** Considerar un seguro de vida por {formatear_moneda(necesidades['montos']['proteccion'])}")
-    
+        monto_prot = necesidades['montos']['proteccion']
+        if not tiene_seguro_vida:
+            recomendaciones.append(
+                f"🛡️ **#1 – Protección (URGENTE):** No cuentas con seguro de vida. "
+                f"Se recomienda contratar un seguro de al menos **{formatear_moneda(monto_prot)}** "
+                f"(24 meses de tu necesidad mensual indicada)."
+            )
+        else:
+            recomendaciones.append(
+                f"🛡️ **Protección:** Ya cuentas con seguro de vida. Verifica que tu cobertura "
+                f"sea de al menos **{formatear_moneda(monto_prot)}**."
+            )
+
+    fondo_e = necesidades['montos']['fondo_emergencia']
+    if fondo_e > 0:
+        recomendaciones.append(
+            f"🚨 **Fondo de Emergencia:** Constituir un fondo de **{formatear_moneda(fondo_e)}**. "
+            f"Diversifica el monto disponible mensual entre este fondo y el retiro hasta alcanzarlo."
+        )
+
     if necesidades['montos']['retiro'] > 0:
-        recomendaciones.append(f"👴 **Retiro:** Iniciar plan de retiro con ahorro mensual de {formatear_moneda(st.session_state.datos['retiro'].get('ahorro_mensual_sugerido', 0))}")
-    
+        recomendaciones.append(
+            f"👴 **Retiro:** Una vez cubierta la protección y el fondo de emergencia, "
+            f"destinar **{formatear_moneda(st.session_state.datos['retiro'].get('ahorro_mensual_sugerido', 0))}** "
+            f"mensuales al plan de retiro."
+        )
+
     if necesidades['montos']['educacion'] > 0:
-        recomendaciones.append(f"🎓 **Educación:** Plan educativo que requiere {formatear_moneda(st.session_state.datos['educacion'].get('ahorro_mensual_total', 0))} mensuales")
-    
-    if necesidades['montos']['ahorro'] > 0:
-        recomendaciones.append(f"💰 **Proyecto:** Ahorro sistemático de {formatear_moneda(st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0))} mensuales")
-    
-    if st.session_state.datos['ahorro'].get('preparado_crisis') in ["No", "Parcialmente"]:
-        recomendaciones.append("🚨 **Fondo de Emergencia:** Crear fondo equivalente a 3-6 meses de gastos")
-    
+        recomendaciones.append(
+            f"🎓 **Educación:** Plan educativo que requiere "
+            f"**{formatear_moneda(st.session_state.datos['educacion'].get('ahorro_mensual_total', 0))}** mensuales."
+        )
+
+    if st.session_state.datos['ahorro'].get('tiene_proyecto') == "Sí":
+        desc_proy = st.session_state.datos['ahorro'].get('descripcion_proyecto', '').lower()
+        ahorro_m  = st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0)
+        if any(p in desc_proy for p in ['viaje', 'viajes', 'vacacion', 'vacaciones', 'trip']):
+            recomendaciones.append(
+                f"✈️ **Proyecto – Viaje:** Reduce tus gastos de deseos/variables y destina ese ahorro extra "
+                f"(**{formatear_moneda(ahorro_m)}** sugeridos) a un fondo separado para viajes."
+            )
+        elif any(p in desc_proy for p in ['negocio', 'empresa', 'emprender', 'emprendimiento']):
+            recomendaciones.append(
+                f"💼 **Proyecto – Negocio:** Una vez completado el fondo de emergencia, "
+                f"empieza a ahorrar **{formatear_moneda(ahorro_m)}** mensuales para este proyecto."
+            )
+        else:
+            recomendaciones.append(
+                f"💰 **Proyecto ({st.session_state.datos['ahorro'].get('descripcion_proyecto', '')}):** "
+                f"Ahorro sistemático de **{formatear_moneda(ahorro_m)}** mensuales "
+                f"(iniciar después de constituir el fondo de emergencia)."
+            )
+
     for rec in recomendaciones:
         st.write(rec)
     
@@ -2337,7 +2544,7 @@ elif st.session_state.step == 9:
         st.subheader("💾 Descargar Reporte")
         
         col1, col2, col3, col4 = st.columns(4)
- 
+        
         with col1:
             json_data = exportar_json()
             st.download_button(
@@ -2348,7 +2555,7 @@ elif st.session_state.step == 9:
                 use_container_width=True,
                 key="download_json_final"
             )
- 
+        
         with col2:
             pdf_buffer = generar_pdf_asesoria_mejorado(st.session_state.datos)
             if pdf_buffer:
@@ -2356,11 +2563,11 @@ elif st.session_state.step == 9:
                     label="📑 Descargar PDF",
                     data=pdf_buffer,
                     file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf",
-                        mime="application/pdf",
-                        use_container_width=True,
-                        key="download_pdf_final"
-                    )
-     
+                    mime="application/pdf",
+                    use_container_width=True,
+                    key="download_pdf_final"
+                )
+        
         with col3:
             grafico_buffer = generar_graficos_necesidades()
             if grafico_buffer:
@@ -2372,7 +2579,7 @@ elif st.session_state.step == 9:
                     use_container_width=True,
                     key="download_grafico_final"
                 )
-     
+
         with col4:
             with st.spinner("Preparando Excel..."):
                 excel_buffer = generar_excel_seguimiento(st.session_state.datos)
@@ -2384,7 +2591,8 @@ elif st.session_state.step == 9:
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 use_container_width=True,
                 key="download_excel_final"
-            )        
+            )
+        
         # Botón para nueva asesoría
         st.markdown("---")
         st.subheader("🔄 Nueva Asesoría")
@@ -2434,10 +2642,3 @@ st.markdown("""
     No sustituye una asesoría financiera profesional completa.</p>
 </div>
 """, unsafe_allow_html=True)
-
-
-
-
-
-
-
