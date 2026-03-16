@@ -662,99 +662,197 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
     # ════════════════════════════════════════════════════════════════════════
     ws4 = wb.create_sheet("🎯 Metas Financieras")
     ws4.sheet_view.showGridLines = False
-    ws4.column_dimensions["A"].width = 30
-    for col in list("BCDEFGH"):
-        ws4.column_dimensions[col].width = 16
 
-    ws4.row_dimensions[1].height = 8
-    _banner(ws4, 2, "SEGUIMIENTO DE METAS FINANCIERAS · RIZKORA", merge_to="H")
-    ws4.row_dimensions[3].height = 8
+    # ── Decidir qué pilares aplican ───────────────────────────────────────
+    tiene_hijos_excel = pf.get("tiene_hijos") == "Sí" and edu.get("aplica", False)
+    tiene_proyecto_excel = aho.get("tiene_proyecto") == "Sí"
+    nombre_proyecto = aho.get("descripcion", aho.get("descripcion_proyecto", "Proyecto"))
 
-    r4 = 4
-    _sec_hdr(ws4, r4, "PLAN DE INVERSIÓN Y COBERTURA", merge_to="H")
-    r4 += 1
-    meta_hdrs2 = ["Meta / Necesidad", "Monto objetivo ($)", "Aport. mensual ($)",
-                  "Plazo (meses)", "Fecha inicio", "Monto acumulado ($)", "% Avance", "Estado"]
-    for j, h in enumerate(meta_hdrs2):
-        _hdr(ws4, r4, 1+j, h, sz=9)
-    r4 += 1
-
-    metas_excel = [
+    # Lista dinámica de pilares (sin educación si no hay hijos)
+    pilares = [
         ("Protección (vida / GMM)",
          _float(prot.get("monto_proteccion_sugerido", 0)),
-         _float(prot.get("presupuesto_mensual", 0))),
+         _float(prot.get("presupuesto_mensual", 0)) * 12),
         ("Retiro / Pensión",
          _float(ret.get("monto_total_retiro", 0)),
-         _float(ret.get("ahorro_mensual_sugerido", 0))),
-        ("Educación hijos",
-         _float(edu.get("monto_total_educacion", 0)),
-         _float(edu.get("ahorro_mensual_total", 0))),
-        ("Ahorro / Proyecto específico",
-         _float(aho.get("costo", 0)),
-         _float(aho.get("ahorro_mensual_sugerido", 0))),
-        ("Fondo de emergencia (3-6 meses de gastos)", 0, 0),
-        ("Meta adicional 1", 0, 0),
-        ("Meta adicional 2", 0, 0),
+         _float(ret.get("ahorro_mensual_sugerido", 0)) * 12),
     ]
-    META_BASE = r4
-    for i, (nombre, monto, aport) in enumerate(metas_excel):
+    if tiene_hijos_excel:
+        pilares.append((
+            "Educación hijos",
+            _float(edu.get("monto_total_educacion", 0)),
+            _float(edu.get("ahorro_mensual_total", 0)) * 12,
+        ))
+    if tiene_proyecto_excel:
+        pilares.append((
+            _str(nombre_proyecto) if nombre_proyecto else "Proyecto",
+            _float(aho.get("costo", 0)),
+            _float(aho.get("ahorro_mensual_sugerido", 0)) * 12,
+        ))
+    pilares.append(("Fondo de emergencia", _float(prot.get("fondo_emergencia_sugerido", 0)), 0))
+
+    # Número de pilares para calcular columnas
+    n_pilares = len(pilares)
+
+    # Anchos de columna: A=etiqueta, B..B+n=pilares, después extra cols
+    ws4.column_dimensions["A"].width = 30
+    for i in range(n_pilares):
+        ws4.column_dimensions[get_column_letter(2 + i)].width = 18
+    # Columnas extra tabla superior (Plazo, Fecha inicio, Estado)
+    last_pilar_col = 1 + n_pilares
+    ws4.column_dimensions[get_column_letter(last_pilar_col + 1)].width = 12  # Plazo años
+    ws4.column_dimensions[get_column_letter(last_pilar_col + 2)].width = 14  # Fecha inicio
+    ws4.column_dimensions[get_column_letter(last_pilar_col + 3)].width = 14  # Estado
+    # Tabla inferior: cols adicionales TOTAL AÑO y CUMPLIDO
+    ws4.column_dimensions[get_column_letter(last_pilar_col + 1)].width = 16
+    ws4.column_dimensions[get_column_letter(last_pilar_col + 2)].width = 16
+
+    total_cols_sup = last_pilar_col + 3  # hasta Estado
+    merge_end_sup = get_column_letter(total_cols_sup)
+
+    ws4.row_dimensions[1].height = 8
+    _banner(ws4, 2, "SEGUIMIENTO DE METAS FINANCIERAS · RIZKORA",
+            merge_to=merge_end_sup)
+    ws4.row_dimensions[3].height = 8
+
+    # ── TABLA SUPERIOR: Plan de Inversión ────────────────────────────────
+    r4 = 4
+    _sec_hdr(ws4, r4, "PLAN DE INVERSIÓN Y COBERTURA", merge_to=merge_end_sup)
+    r4 += 1
+
+    # Cabeceras tabla superior
+    # Col 1: Meta/Necesidad | Col 2..n+1: nombre pilar (monto objetivo) | n+2: Aportación obj. anual | n+3: Plazo años | n+4: Fecha inicio | n+5: Estado
+    ws4.row_dimensions[r4].height = 28
+    _hdr(ws4, r4, 1, "Meta / Necesidad", sz=9)
+    _hdr(ws4, r4, 2, "Monto Objetivo ($)", sz=9)
+    _hdr(ws4, r4, 3, "Aportación Objetivo Anual ($)", sz=9)
+    _hdr(ws4, r4, 4, "Plazo (Años)", sz=9)
+    _hdr(ws4, r4, 5, "Fecha de Inicio", sz=9)
+    _hdr(ws4, r4, 6, "Estado", sz=9)
+    # Rellenar resto si hay más cols
+    for extra_col in range(7, total_cols_sup + 1):
+        c = ws4.cell(row=r4, column=extra_col)
+        c.fill = _fill(AZ_OSC); c.border = _border()
+    r4 += 1
+
+    # Filas de pilares
+    META_ANUAL_ROWS = {}  # pilar_idx -> row (para referencia desde tabla inferior)
+    for i, (nombre, monto_obj, aport_anual) in enumerate(pilares):
         r = r4 + i
         ws4.row_dimensions[r].height = 22
         bg = AZ_CLAR if i % 2 == 0 else BLANCO
-        _data(ws4, r, 1, nombre, bg=bg, h="left")
-        _data(ws4, r, 2, monto if monto else None, num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)
-        _data(ws4, r, 3, aport if aport else None, num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)
-        _data(ws4, r, 4, None, num_fmt=FMT_INT, bg=bg, fc=AZUL_INP)  # plazo meses
-        _data(ws4, r, 5, None, num_fmt=FMT_FECHA, bg=bg, fc=AZUL_INP)  # fecha inicio
-        _data(ws4, r, 6, None, num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)  # acumulado
-        # % avance
-        c7 = ws4.cell(row=r, column=7, value=f"=IFERROR(F{r}/B{r},0)")
-        c7.font = _ft(bold=True); c7.fill = _fill(bg)
-        c7.border = _border(); c7.number_format = FMT_PCT; c7.alignment = _align(h="center")
-        # estado
-        c8 = ws4.cell(row=r, column=8,
-                      value=f'=IF(G{r}>=1,"✅ Lograda",IF(G{r}>=0.5,"🟡 En progreso","🔴 Iniciar"))')
-        c8.font = _ft(bold=True); c8.fill = _fill(bg)
-        c8.border = _border(); c8.alignment = _align(h="center")
-    r4 += len(metas_excel) + 2
+        _data(ws4, r, 1, nombre, bg=bg, h="left", bold=True)
+        _data(ws4, r, 2, monto_obj if monto_obj else None,
+              num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)
+        _data(ws4, r, 3, aport_anual if aport_anual else None,
+              num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)
+        _data(ws4, r, 4, None, num_fmt='0', bg=bg, fc=AZUL_INP)       # Plazo años
+        _data(ws4, r, 5, None, num_fmt="DD/MM/YYYY", bg=bg, fc=AZUL_INP)  # Fecha inicio
+        # Estado automático basado en si tiene monto
+        c_est = ws4.cell(row=r, column=6,
+                         value=f'=IF(B{r}>0,"🔴 Iniciar","—")')
+        c_est.font = _ft(bold=True, sz=10); c_est.fill = _fill(bg)
+        c_est.border = _border(); c_est.alignment = _align(h="center")
+        # Cols sobrantes
+        for extra_col in range(7, total_cols_sup + 1):
+            c = ws4.cell(row=r, column=extra_col)
+            c.fill = _fill(bg); c.border = _border()
+        META_ANUAL_ROWS[i] = r
 
-    # Tabla aportaciones mensuales
-    _sec_hdr(ws4, r4, "APORTACIONES MENSUALES AL PLAN (por mes)", merge_to="H")
+    r4 += len(pilares) + 2
+
+    # ── TABLA INFERIOR: Aportaciones mensuales (transpuesta) ─────────────
+    # Estructura:
+    # Col 1 = Pilar (fila encabezado) / Mes (filas de datos) / "TOTAL MES" (última fila)
+    # Col 2..n+1 = meses Ene..Dic (en encabezado) / valores por mes
+    # Col n+2 = TOTAL AÑO
+    # Col n+3 = CUMPLIDO (vs objetivo anual tabla superior)
+
+    total_cols_inf = 1 + 12 + 2   # pilar + 12 meses + total año + cumplido
+    merge_end_inf = get_column_letter(total_cols_inf)
+
+    # Anclar anchos para columnas de meses
+    for m in range(12):
+        ws4.column_dimensions[get_column_letter(2 + m)].width = 11
+    ws4.column_dimensions[get_column_letter(14)].width = 16  # TOTAL AÑO
+    ws4.column_dimensions[get_column_letter(15)].width = 14  # CUMPLIDO
+
+    _sec_hdr(ws4, r4, "APORTACIONES REALES AL PLAN (por pilar)", merge_to=merge_end_inf)
     r4 += 1
-    ap_hdrs = ["Mes", "Protección", "Retiro", "Educación", "Proyecto", "F. Emergencia", "Otros", "TOTAL MES"]
-    for j, h in enumerate(ap_hdrs):
-        _hdr(ws4, r4, 1+j, h, sz=8)
+
+    # Cabecera: Pilar | Ene | Feb | ... | Dic | TOTAL AÑO | CUMPLIDO
+    ws4.row_dimensions[r4].height = 28
+    _hdr(ws4, r4, 1, "Pilar / Mes ►", sz=9)
+    for m_i, mes in enumerate(MESES):
+        _hdr(ws4, r4, 2 + m_i, mes, sz=9)
+    _hdr(ws4, r4, 14, "TOTAL AÑO", bg=VERDE, sz=9)
+    _hdr(ws4, r4, 15, "¿CUMPLIDO?", bg=AZ_MED, sz=9)
+    AP_HDR_ROW = r4
     r4 += 1
-    AP_ROWS = []
-    for i, mes in enumerate(MESES):
-        ws4.row_dimensions[r4].height = 20
+
+    # Una fila por pilar
+    AP_PILAR_ROWS = {}
+    for i, (nombre, _, aport_anual) in enumerate(pilares):
+        ws4.row_dimensions[r4].height = 22
         bg = AZ_CLAR if i % 2 == 0 else BLANCO
-        c = ws4.cell(row=r4, column=1, value=mes)
-        c.font = _ft(bold=True, sz=10, color=AZ_OSC); c.fill = _fill(bg)
-        c.border = _border(); c.alignment = _align(h="center")
-        for col in range(2, 8):
-            cell = ws4.cell(row=r4, column=col)
+
+        # Col 1: nombre pilar
+        c1 = ws4.cell(row=r4, column=1, value=nombre)
+        c1.font = _ft(bold=True, sz=10, color=AZ_OSC); c1.fill = _fill(bg)
+        c1.border = _border(); c1.alignment = _align(h="left")
+
+        # Cols 2-13: un input por mes
+        for m_i in range(12):
+            cell = ws4.cell(row=r4, column=2 + m_i)
             cell.font = _ft(sz=10, color=AZUL_INP); cell.fill = _fill(bg)
             cell.border = _border(); cell.number_format = FMT_PESOS
             cell.alignment = _align(h="center")
-        c8 = ws4.cell(row=r4, column=8, value=f"=SUM(B{r4}:G{r4})")
-        c8.font = _ft(bold=True, color=BLANCO); c8.fill = _fill(VERDE)
-        c8.border = _border(); c8.number_format = FMT_PESOS
-        c8.alignment = _align(h="center")
-        AP_ROWS.append(r4); r4 += 1
 
-    # Total anual
-    ws4.row_dimensions[r4].height = 22
-    c = ws4.cell(row=r4, column=1, value="TOTAL ANUAL")
-    c.font = _ft(bold=True, color=AMARILLO); c.fill = _fill(AZ_OSC)
-    c.border = _border(); c.alignment = _align(h="center")
-    for col in range(2, 9):
-        cl = get_column_letter(col)
-        cell = ws4.cell(row=r4, column=col,
-                        value=f"=SUM({cl}{AP_ROWS[0]}:{cl}{AP_ROWS[-1]})")
+        # Col 14: TOTAL AÑO = SUM(B..M de esta fila)
+        c14 = ws4.cell(row=r4, column=14,
+                       value=f"=SUM(B{r4}:M{r4})")
+        c14.font = _ft(bold=True, sz=11, color=BLANCO); c14.fill = _fill(VERDE)
+        c14.border = _border(); c14.number_format = FMT_PESOS
+        c14.alignment = _align(h="center")
+
+        # Col 15: CUMPLIDO — compara total año con objetivo anual de tabla superior
+        meta_row = META_ANUAL_ROWS[i]  # fila donde está C{meta_row} = objetivo anual
+        c15 = ws4.cell(row=r4, column=15,
+                       value=f'=IF(C{meta_row}=0,"—",IF(N{r4}>=C{meta_row},"✅ Cumplido","⏳ En curso"))')
+        c15.font = _ft(bold=True, sz=10); c15.fill = _fill(AZ_CLAR)
+        c15.border = _border(); c15.alignment = _align(h="center")
+
+        AP_PILAR_ROWS[i] = r4
+        r4 += 1
+
+    # Fila TOTAL MES (suma de todos los pilares por cada mes)
+    ws4.row_dimensions[r4].height = 24
+    c_tot_lbl = ws4.cell(row=r4, column=1, value="TOTAL MES")
+    c_tot_lbl.font = _ft(bold=True, sz=11, color=AMARILLO)
+    c_tot_lbl.fill = _fill(AZ_OSC); c_tot_lbl.border = _border()
+    c_tot_lbl.alignment = _align(h="left")
+
+    first_ap = AP_PILAR_ROWS[0]
+    last_ap  = AP_PILAR_ROWS[len(pilares) - 1]
+
+    for m_i in range(12):
+        cl = get_column_letter(2 + m_i)
+        cell = ws4.cell(row=r4, column=2 + m_i,
+                        value=f"=SUM({cl}{first_ap}:{cl}{last_ap})")
         cell.font = _ft(bold=True, color=AMARILLO); cell.fill = _fill(AZ_OSC)
         cell.border = _border(); cell.number_format = FMT_PESOS
         cell.alignment = _align(h="center")
+
+    # Total general año (suma todos los totales de año por pilar)
+    c14_tot = ws4.cell(row=r4, column=14,
+                       value=f"=SUM(N{first_ap}:N{last_ap})")
+    c14_tot.font = _ft(bold=True, color=AMARILLO); c14_tot.fill = _fill(AZ_OSC)
+    c14_tot.border = _border(); c14_tot.number_format = FMT_PESOS
+    c14_tot.alignment = _align(h="center")
+
+    # Celda cumplido de total (vacía, estilo)
+    c15_tot = ws4.cell(row=r4, column=15)
+    c15_tot.fill = _fill(AZ_OSC); c15_tot.border = _border()
 
     # ════════════════════════════════════════════════════════════════════════
     # HOJA 5 – INSTRUCCIONES
