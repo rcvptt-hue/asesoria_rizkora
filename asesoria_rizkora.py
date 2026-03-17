@@ -1897,103 +1897,130 @@ elif st.session_state.step == 4:
 # ================================
 elif st.session_state.step == 5:
     st.header("5️⃣ Ahorro / Crisis / Proyectos")
-    
-    with st.form("form_ahorro"):
-        preparado_crisis = st.radio(
-            "¿Estás preparado para una crisis financiera?*",
-            ["Sí", "No", "Parcialmente"],
-            index=["Sí", "No", "Parcialmente"].index(st.session_state.datos['ahorro'].get('preparado_crisis', 'No'))
+
+    # ── Radios FUERA del form para reactividad inmediata ──────────────────
+    preparado_crisis = st.radio(
+        "¿Estás preparado para una crisis financiera?*",
+        ["Sí", "No", "Parcialmente"],
+        index=["Sí", "No", "Parcialmente"].index(
+            st.session_state.datos['ahorro'].get('preparado_crisis', 'No')),
+        key="radio_preparado_crisis"
+    )
+
+    if preparado_crisis in ["No", "Parcialmente"]:
+        st.info("""
+        💡 **Recomendación:**
+        Es importante contar con un fondo de emergencia equivalente a 3-6 meses de tus gastos mensuales.
+        """)
+
+    st.markdown("---")
+    st.subheader("Proyectos a Mediano/Largo Plazo")
+
+    tiene_proyecto = st.radio(
+        "¿Tienes un proyecto a mediano o largo plazo?*",
+        ["Sí", "No"],
+        index=0 if st.session_state.datos['ahorro'].get('tiene_proyecto') == "Sí" else 1,
+        key="radio_tiene_proyecto"
+    )
+
+    # ── Campos de proyecto FUERA del form ─────────────────────────────────
+    proyecto_info = {}
+    descripcion_proyecto = ""
+    costo_proyecto = 0.0
+    ahorro_actual = 0.0
+    plazo_anos = 5
+
+    if tiene_proyecto == "Sí":
+        descripcion_proyecto = st.text_input(
+            "Describe tu proyecto",
+            value=st.session_state.datos['ahorro'].get('descripcion_proyecto', ''),
+            placeholder="Ej: Comprar casa, iniciar negocio, viaje...",
+            key="input_descripcion_proyecto"
         )
-        
-        if preparado_crisis in ["No", "Parcialmente"]:
-            st.info("""
-            💡 **Recomendación:**
-            Es importante contar con un fondo de emergencia equivalente a 3-6 meses de tus gastos mensuales.
-            """)
-        
-        st.markdown("---")
-        st.subheader("Proyectos a Mediano/Largo Plazo")
-        
-        tiene_proyecto = st.radio("¿Tienes un proyecto a mediano o largo plazo?*", ["Sí", "No"],
-                                 index=0 if st.session_state.datos['ahorro'].get('tiene_proyecto') == "Sí" else 1)
-        
-        proyecto_info = {}
-        if tiene_proyecto == "Sí":
-            descripcion_proyecto = st.text_input("Describe tu proyecto", 
-                                                value=st.session_state.datos['ahorro'].get('descripcion_proyecto', ''),
-                                                placeholder="Ej: Comprar casa, iniciar negocio, viaje...")
-            
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            costo_proyecto = st.number_input(
+                "Costo estimado del proyecto*",
+                min_value=0.0,
+                value=float(st.session_state.datos['ahorro'].get('costo_proyecto', 0)),
+                step=10000.0, format="%.2f",
+                key="input_costo_proyecto"
+            )
+        with col2:
+            ahorro_actual = st.number_input(
+                "Ahorro actual disponible",
+                min_value=0.0,
+                value=float(st.session_state.datos['ahorro'].get('ahorro_actual', 0)),
+                step=1000.0, format="%.2f",
+                key="input_ahorro_actual"
+            )
+        with col3:
+            plazo_anos = st.number_input(
+                "Plazo en años*",
+                min_value=1, max_value=30,
+                value=st.session_state.datos['ahorro'].get('plazo_anos', 5),
+                key="input_plazo_anos"
+            )
+
+        if costo_proyecto > 0 and plazo_anos > 0:
+            inversion_requerida = max(0, costo_proyecto - ahorro_actual)
+            ahorro_mensual_sugerido = inversion_requerida / (plazo_anos * 12)
+
+            st.markdown("---")
+            st.subheader("📊 Cálculo del Proyecto")
             col1, col2, col3 = st.columns(3)
             with col1:
-                costo_proyecto = st.number_input("Costo estimado del proyecto*", 
-                                                min_value=0.0,
-                                                value=float(st.session_state.datos['ahorro'].get('costo_proyecto', 0)),
-                                                step=10000.0,
-                                                format="%.2f")
+                st.metric("Costo Total", formatear_moneda(costo_proyecto))
             with col2:
-                ahorro_actual = st.number_input("Ahorro actual disponible", 
-                                               min_value=0.0,
-                                               value=float(st.session_state.datos['ahorro'].get('ahorro_actual', 0)),
-                                               step=1000.0,
-                                               format="%.2f")
+                st.metric("Inversión Requerida", formatear_moneda(inversion_requerida))
             with col3:
-                plazo_anos = st.number_input("Plazo en años*", 
-                                            min_value=1, max_value=30,
-                                            value=st.session_state.datos['ahorro'].get('plazo_anos', 5))
-            
-            if costo_proyecto > 0 and plazo_anos > 0:
-                inversion_requerida = max(0, costo_proyecto - ahorro_actual)
-                ahorro_mensual_sugerido = inversion_requerida / (plazo_anos * 12)
-                
-                st.markdown("---")
-                st.subheader("📊 Cálculo del Proyecto")
-                
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Costo Total", formatear_moneda(costo_proyecto))
-                with col2:
-                    st.metric("Inversión Requerida", formatear_moneda(inversion_requerida))
-                with col3:
-                    st.metric("Ahorro Mensual Sugerido", formatear_moneda(ahorro_mensual_sugerido))
-                
-                proyecto_info = {
-                    'descripcion': descripcion_proyecto,
-                    'costo': costo_proyecto,
-                    'ahorro_actual': ahorro_actual,
-                    'plazo_anos': plazo_anos,
-                    'inversion_requerida': inversion_requerida,
-                    'ahorro_mensual_sugerido': ahorro_mensual_sugerido
-                }
-        
+                st.metric("Ahorro Mensual Sugerido", formatear_moneda(ahorro_mensual_sugerido))
+
+            proyecto_info = {
+                'descripcion': descripcion_proyecto,
+                'descripcion_proyecto': descripcion_proyecto,
+                'costo': costo_proyecto,
+                'costo_proyecto': costo_proyecto,
+                'ahorro_actual': ahorro_actual,
+                'plazo_anos': plazo_anos,
+                'plazo': plazo_anos * 12,
+                'inversion_requerida': inversion_requerida,
+                'ahorro_mensual_sugerido': ahorro_mensual_sugerido
+            }
+
+    st.markdown("---")
+
+    # ── Botones de navegación en mini-form ────────────────────────────────
+    with st.form("form_ahorro_nav"):
         col1, col2 = st.columns(2)
         with col1:
             if st.form_submit_button("⬅️ Anterior", use_container_width=True):
                 navegar_a_paso(4)
         with col2:
             submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
-        
+
         if submitted:
             errores = []
-            
-            if tiene_proyecto == "Sí":
-                if not descripcion_proyecto.strip():
+            _tiene_proyecto = st.session_state.get("radio_tiene_proyecto", "No")
+
+            if _tiene_proyecto == "Sí":
+                if not st.session_state.get("input_descripcion_proyecto", "").strip():
                     errores.append("Describe tu proyecto")
-                if costo_proyecto <= 0:
+                if st.session_state.get("input_costo_proyecto", 0) <= 0:
                     errores.append("El costo del proyecto debe ser mayor a 0")
-                if plazo_anos <= 0:
-                    errores.append("El plazo debe ser mayor a 0")
-            
+
             if errores:
                 for error in errores:
                     st.error(f"❌ {error}")
             else:
-                # Guardar datos
+                _preparado = st.session_state.get("radio_preparado_crisis", "No")
+                _tiene_proy = st.session_state.get("radio_tiene_proyecto", "No")
                 st.session_state.datos['ahorro'] = {
-                    'preparado_crisis': preparado_crisis,
-                    'tiene_proyecto': tiene_proyecto,
+                    'preparado_crisis': _preparado,
+                    'tiene_proyecto': _tiene_proy,
                     **proyecto_info
                 }
-                
                 st.success("✅ Información de ahorro guardada")
                 navegar_a_paso(6)
 
@@ -2002,84 +2029,87 @@ elif st.session_state.step == 5:
 # ================================
 elif st.session_state.step == 6:
     st.header("6️⃣ Retiro")
-    
-    edad_actual = st.session_state.datos['datos_generales'].get('edad', 30)
-    
-    with st.form("form_retiro"):
-        st.write(f"**Tu edad actual:** {edad_actual} años")
-        
-        edad_retiro = st.number_input("¿A qué edad te gustaría retirarte?*", 
-                                     min_value=edad_actual + 1, 
-                                     max_value=80,
-                                     value=st.session_state.datos['retiro'].get('edad_retiro', 65))
-        
-        ingreso_mensual_retiro = st.number_input(
-            "¿Cuánto te gustaría recibir mensualmente en el retiro?*",
-            min_value=0.0,
-            value=float(st.session_state.datos['retiro'].get('ingreso_mensual_retiro', 0)),
-            step=1000.0,
-            format="%.2f"
-        )
-        
-        if ingreso_mensual_retiro > 0 and edad_retiro > edad_actual:
-            anos_para_retiro = edad_retiro - edad_actual
-            anos_en_retiro = 80 - edad_retiro  # Esperanza de vida 80 años
-            
-            monto_anual_retiro = ingreso_mensual_retiro * 12
-            monto_total_retiro = monto_anual_retiro * anos_en_retiro
-            
-            # Cálculo simplificado de ahorro mensual requerido
-            # (sin considerar inflación ni rendimientos para simplicidad)
-            ahorro_mensual_retiro = monto_total_retiro / (anos_para_retiro * 12)
-            
-            st.markdown("---")
-            st.subheader("📊 Proyección de Retiro")
-            
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Años para el retiro", f"{anos_para_retiro} años")
-                st.metric("Años en retiro", f"{anos_en_retiro} años")
-                st.metric("Ingreso anual deseado", formatear_moneda(monto_anual_retiro))
-            
-            with col2:
-                st.metric("Monto total requerido", formatear_moneda(monto_total_retiro))
-                st.metric("Ahorro mensual sugerido", formatear_moneda(ahorro_mensual_retiro))
-            
-            st.info(f"""
-            💡 **Proyección de Retiro:**
-            - Se sugiere ahorrar **{formatear_moneda(ahorro_mensual_retiro)}** mensuales
 
-            *Nota: Este es un cálculo simplificado. Se recomienda una asesoría detallada considerando inflación y rendimientos.*
-            """)
-        
+    edad_actual = st.session_state.datos['datos_generales'].get('edad', 30)
+    st.write(f"**Tu edad actual:** {edad_actual} años")
+
+    # ── Inputs FUERA del form para reactividad inmediata ──────────────────
+    edad_retiro = st.number_input(
+        "¿A qué edad te gustaría retirarte?*",
+        min_value=edad_actual + 1,
+        max_value=80,
+        value=st.session_state.datos['retiro'].get('edad_retiro', 65),
+        key="input_edad_retiro"
+    )
+
+    ingreso_mensual_retiro = st.number_input(
+        "¿Cuánto te gustaría recibir mensualmente en el retiro?*",
+        min_value=0.0,
+        value=float(st.session_state.datos['retiro'].get('ingreso_mensual_retiro', 0)),
+        step=1000.0, format="%.2f",
+        key="input_ingreso_retiro"
+    )
+
+    # ── Proyección en vivo ─────────────────────────────────────────────────
+    if ingreso_mensual_retiro > 0 and edad_retiro > edad_actual:
+        anos_para_retiro = edad_retiro - edad_actual
+        anos_en_retiro   = 80 - edad_retiro
+        monto_anual_retiro = ingreso_mensual_retiro * 12
+        monto_total_retiro = monto_anual_retiro * anos_en_retiro
+        ahorro_mensual_retiro = monto_total_retiro / (anos_para_retiro * 12)
+
+        st.markdown("---")
+        st.subheader("📊 Proyección de Retiro")
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Años para el retiro",   f"{anos_para_retiro} años")
+            st.metric("Años en retiro",         f"{anos_en_retiro} años")
+            st.metric("Ingreso anual deseado",  formatear_moneda(monto_anual_retiro))
+        with col2:
+            st.metric("Monto total requerido",  formatear_moneda(monto_total_retiro))
+            st.metric("Ahorro mensual sugerido", formatear_moneda(ahorro_mensual_retiro))
+
+        st.info(f"""
+        💡 **Proyección de Retiro:**
+        - Se sugiere ahorrar **{formatear_moneda(ahorro_mensual_retiro)}** mensuales
+
+        *Nota: Este es un cálculo simplificado. Se recomienda una asesoría detallada considerando inflación y rendimientos.*
+        """)
+
+    st.markdown("---")
+
+    # ── Botones en mini-form ───────────────────────────────────────────────
+    with st.form("form_retiro_nav"):
         col1, col2 = st.columns(2)
         with col1:
             if st.form_submit_button("⬅️ Anterior", use_container_width=True):
                 navegar_a_paso(5)
         with col2:
             submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
-        
+
         if submitted:
-            if ingreso_mensual_retiro <= 0:
+            _ingreso = st.session_state.get("input_ingreso_retiro", 0)
+            _edad_r  = st.session_state.get("input_edad_retiro", 65)
+
+            if _ingreso <= 0:
                 st.error("❌ El ingreso mensual de retiro debe ser mayor a 0")
-            elif edad_retiro <= edad_actual:
+            elif _edad_r <= edad_actual:
                 st.error("❌ La edad de retiro debe ser mayor a tu edad actual")
             else:
-                # Guardar datos
-                anos_para_retiro = edad_retiro - edad_actual
-                anos_en_retiro = max(1, 80 - edad_retiro)
-                monto_total = ingreso_mensual_retiro * 12 * anos_en_retiro
-                
+                _anos_para  = _edad_r - edad_actual
+                _anos_en    = max(1, 80 - _edad_r)
+                _monto_total = _ingreso * 12 * _anos_en
                 st.session_state.datos['retiro'] = {
-                    'edad_retiro': edad_retiro,
-                    'ingreso_mensual_retiro': ingreso_mensual_retiro,
-                    'anos_para_retiro': anos_para_retiro,
-                    'anos_en_retiro': anos_en_retiro,
-                    'monto_anual_retiro': ingreso_mensual_retiro * 12,
-                    'monto_total_retiro': monto_total,
-                    'ahorro_mensual_sugerido': monto_total / max(1, anos_para_retiro * 12)
+                    'edad_retiro':            _edad_r,
+                    'ingreso_mensual_retiro': _ingreso,
+                    'anos_para_retiro':       _anos_para,
+                    'anos_en_retiro':         _anos_en,
+                    'monto_anual_retiro':     _ingreso * 12,
+                    'monto_total_retiro':     _monto_total,
+                    'ahorro_mensual_sugerido': _monto_total / max(1, _anos_para * 12),
+                    'anios_ahorro':           _anos_para,
                 }
-                
                 st.success("✅ Plan de retiro configurado")
                 navegar_a_paso(7)
 
