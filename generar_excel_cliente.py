@@ -139,7 +139,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
 
     ws1.column_dimensions["A"].width = 30
     ws1.column_dimensions["B"].width = 28
-    ws1.column_dimensions["C"].width = 28
+    ws1.column_dimensions["C"].width = 4
     ws1.column_dimensions["D"].width = 28
     ws1.column_dimensions["E"].width = 28
 
@@ -226,59 +226,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
 
     ws1.row_dimensions[r+1].height = 8
 
-    # ── Metas financieras ─────────────────────────────────────────────────
-    row_metas = r + 2
-    _sec_hdr(ws1, row_metas, "Metas y Necesidades Financieras Detectadas", merge_to="E")
-    row_metas += 1
-
-    meta_hdrs = ["Meta / Necesidad", "Monto objetivo ($)", "Aport. mensual ($)", "Plazo (años)", "Prioridad"]
-    for j, h in enumerate(meta_hdrs):
-        _hdr(ws1, row_metas, 1+j, h, sz=9)
-    row_metas += 1
-
-    metas_vals = [
-        ("Protección (vida / GMM)",
-         _float(prot.get("monto_proteccion_sugerido", 0)),
-         _float(prot.get("presupuesto_mensual", 0)),
-         "Permanente", "1"),
-        ("Retiro / Pensión",
-         _float(ret.get("monto_total_retiro", 0)),
-         _float(ret.get("ahorro_mensual_sugerido", 0)),
-         _str(ret.get("anios_ahorro", "")),
-         "2"),
-        ("Educación hijos",
-         _float(edu.get("monto_total_educacion", 0)),
-         _float(edu.get("ahorro_mensual_total", 0)),
-         "", "3"),
-        ("Ahorro / Proyecto específico",
-         _float(aho.get("costo", 0)),
-         _float(aho.get("ahorro_mensual_sugerido", 0)),
-         _str(aho.get("plazo", "")),
-         "4"),
-    ]
-
-    for i, (nombre, monto, aport, plazo, prio) in enumerate(metas_vals):
-        r2 = row_metas + i
-        ws1.row_dimensions[r2].height = 22
-        bg = AZ_CLAR if i % 2 == 0 else BLANCO
-        _data(ws1, r2, 1, nombre, bg=bg, h="left")
-        _data(ws1, r2, 2, monto if monto else None, num_fmt=FMT_PESOS, bg=bg)
-        _data(ws1, r2, 3, aport if aport else None, num_fmt=FMT_PESOS, bg=bg)
-        _data(ws1, r2, 4, plazo, bg=bg)
-        _data(ws1, r2, 5, prio, bg=bg)
-
-    # ── Nota de inversión disponible ──────────────────────────────────────
-    r_nota = row_metas + len(metas_vals) + 1
-    ws1.row_dimensions[r_nota].height = 22
-    ws1.merge_cells(f"A{r_nota}:E{r_nota}")
-    inv_mensual = _float(ing.get("inversion_mensual", cap.get("ahorro_sugerido", 0)))
-    nota = ws1.cell(row=r_nota, column=1,
-                    value=f"💎  Capacidad de inversión mensual detectada: "
-                          f"${inv_mensual:,.2f}   |   "
-                          f"Generado el {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-    nota.font = _ft(bold=True, sz=10, color=BLANCO)
-    nota.fill = _fill(AZ_OSC); nota.border = _border()
-    nota.alignment = _align(h="left")
+    # ── Fin de la hoja Perfil ────────────────────────────────────────────
 
     # ════════════════════════════════════════════════════════════════════════
     # HOJA 2 – REGISTRO MENSUAL
@@ -343,7 +291,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         c14.alignment = _align(h="center")
         # Promedio
         c15 = ws.cell(row=row, column=15,
-                      value=f"=IFERROR(N{row}/COUNTIF(B{row}:M{row},\"<> \"),0)")
+                      value=f"=IFERROR(N{row}/COUNTIF(B{row}:M{row},\"<>0\"),0)")
         c15.font = _ft(bold=True); c15.fill = _fill(VERDE_CL)
         c15.border = _border(); c15.number_format = FMT_PESOS
         c15.alignment = _align(h="center")
@@ -365,7 +313,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         c14.font = _ft(bold=bold, color=fc); c14.fill = _fill(bg_row)
         c14.border = _border(); c14.number_format = num_fmt or FMT_PESOS
         c14.alignment = _align(h="center")
-        c15 = ws.cell(row=row, column=15, value=f"=SUM(B{row}:M{row})")
+        c15 = ws.cell(row=row, column=15, value=f"=IFERROR(N{row}/12,0)")
         c15.font = _ft(bold=bold, color=fc); c15.fill = _fill(bg_row)
         c15.border = _border(); c15.number_format = num_fmt or FMT_PESOS
         c15.alignment = _align(h="center")
@@ -383,7 +331,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
             cell.border = _border(); cell.number_format = FMT_PESOS
             cell.alignment = _align(h="center")
         for col, formula in [(14, f"=SUM(B{row}:M{row})"),
-                              (15, f"=SUM(B{row}:M{row})")]:
+                              (15, f"=IFERROR(N{row}/12,0)")]:
             cell = ws.cell(row=row, column=col, value=formula)
             cell.font = _ft(bold=True, color=fc); cell.fill = _fill(bg_total)
             cell.border = _border(); cell.number_format = FMT_PESOS
@@ -501,7 +449,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         cell.font = _ft(bold=True, sz=11, color=BLANCO); cell.fill = _fill(VERDE)
         cell.border = _border(); cell.number_format = FMT_PESOS
         cell.alignment = _align(h="center")
-    for col, fml in [(14, f"=SUM(B{row}:M{row})"), (15, f"=SUM(B{row}:M{row})")]:
+    for col, fml in [(14, f"=SUM(B{row}:M{row})"), (15, f"=IFERROR(N{row}/12,0)")]:
         cell = ws2.cell(row=row, column=col, value=fml)
         cell.font = _ft(bold=True, color=BLANCO); cell.fill = _fill(VERDE)
         cell.border = _border(); cell.number_format = FMT_PESOS
@@ -658,28 +606,53 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
     r3 += len(subcampos) + 2
 
     # Notas de seguimiento mensual
-    _sec_hdr(ws3, r3, "NOTAS DE SEGUIMIENTO MENSUAL (asesor)", merge_to="F")
+    _sec_hdr(ws3, r3, "NOTAS DE SEGUIMIENTO MENSUAL", merge_to="F")
     r3 += 1
     nota_hdrs2 = ["Mes", "Ingreso Real ($)", "Gasto Real ($)",
-                  "Inversión Real ($)", "Observaciones del asesor", "Compromisos del cliente"]
+                  "Inversión Real ($)", "Compromisos del cliente"]
     for j, h in enumerate(nota_hdrs2):
         _hdr(ws3, r3, 1+j, h, sz=9)
+    # Sexta columna vacía con mismo estilo (mantiene el ancho)
+    _hdr(ws3, r3, 6, "", sz=9)
     r3 += 1
+
+    # Mapeo mes → columna en Registro Mensual (B=Ene, C=Feb, …, M=Dic)
     for i, mes in enumerate(MESES):
         ws3.row_dimensions[r3].height = 28
         bg = AZ_CLAR if i % 2 == 0 else BLANCO
+        col_mes = get_column_letter(2 + i)  # B, C, D … M
+
         c = ws3.cell(row=r3, column=1, value=mes)
         c.font = _ft(bold=True, sz=10, color=AZ_OSC); c.fill = _fill(bg)
         c.border = _border(); c.alignment = _align(h="center")
-        for col in range(2, 7):
-            cell = ws3.cell(row=r3, column=col)
-            cell.fill = _fill(bg); cell.border = _border()
-            cell.alignment = _align(h="center", wrap=True)
-            if col <= 4:
-                cell.number_format = FMT_PESOS
-                cell.font = _ft(sz=10, color=AZUL_INP)
-            else:
-                cell.font = _ft(sz=9)
+
+        # Ingreso real – fila ING_TOTAL col del mes
+        c2 = ws3.cell(row=r3, column=2,
+                      value=f"=IFERROR('📅 Registro Mensual'!{col_mes}{ING_TOTAL},0)")
+        c2.font = _ft(sz=10); c2.fill = _fill(bg)
+        c2.border = _border(); c2.number_format = FMT_PESOS; c2.alignment = _align(h="center")
+
+        # Gasto real – fila GT_ROW col del mes
+        c3 = ws3.cell(row=r3, column=3,
+                      value=f"=IFERROR('📅 Registro Mensual'!{col_mes}{GT_ROW},0)")
+        c3.font = _ft(sz=10); c3.fill = _fill(bg)
+        c3.border = _border(); c3.number_format = FMT_PESOS; c3.alignment = _align(h="center")
+
+        # Inversión real – fila INV_ROW col del mes
+        c4 = ws3.cell(row=r3, column=4,
+                      value=f"=IFERROR('📅 Registro Mensual'!{col_mes}{INV_ROW},0)")
+        c4.font = _ft(sz=10); c4.fill = _fill(bg)
+        c4.border = _border(); c4.number_format = FMT_PESOS; c4.alignment = _align(h="center")
+
+        # Compromisos del cliente – input manual
+        c5 = ws3.cell(row=r3, column=5)
+        c5.font = _ft(sz=9, color=AZUL_INP); c5.fill = _fill(bg)
+        c5.border = _border(); c5.alignment = _align(h="left", wrap=True)
+
+        # Columna 6 vacía
+        c6 = ws3.cell(row=r3, column=6)
+        c6.fill = _fill(bg); c6.border = _border()
+
         r3 += 1
 
     # ════════════════════════════════════════════════════════════════════════
@@ -719,21 +692,20 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
     # Número de pilares para calcular columnas
     n_pilares = len(pilares)
 
-    # Anchos de columna: A=etiqueta, B..B+n=pilares, después extra cols
-    ws4.column_dimensions["A"].width = 30
-    for i in range(n_pilares):
-        ws4.column_dimensions[get_column_letter(2 + i)].width = 18
-    # Columnas extra tabla superior (Plazo, Fecha inicio, Estado)
-    last_pilar_col = 1 + n_pilares
-    ws4.column_dimensions[get_column_letter(last_pilar_col + 1)].width = 12  # Plazo años
-    ws4.column_dimensions[get_column_letter(last_pilar_col + 2)].width = 14  # Fecha inicio
-    ws4.column_dimensions[get_column_letter(last_pilar_col + 3)].width = 14  # Estado
-    # Tabla inferior: cols adicionales TOTAL AÑO y CUMPLIDO
-    ws4.column_dimensions[get_column_letter(last_pilar_col + 1)].width = 16
-    ws4.column_dimensions[get_column_letter(last_pilar_col + 2)].width = 16
+    # Anchos de columna: A=etiqueta, cols B-E para datos
+    ws4.column_dimensions["A"].width = 32
+    ws4.column_dimensions["B"].width = 20  # Monto objetivo
+    ws4.column_dimensions["C"].width = 22  # Aportación obj. anual
+    ws4.column_dimensions["D"].width = 13  # Plazo años
+    ws4.column_dimensions["E"].width = 15  # Fecha inicio
+    # Tabla inferior: 12 meses + total año + cumplido
+    for m in range(12):
+        ws4.column_dimensions[get_column_letter(2 + m)].width = 11
+    ws4.column_dimensions[get_column_letter(14)].width = 16  # TOTAL AÑO
+    ws4.column_dimensions[get_column_letter(15)].width = 14  # CUMPLIDO
 
-    total_cols_sup = last_pilar_col + 3  # hasta Estado
-    merge_end_sup = get_column_letter(total_cols_sup)
+    total_cols_sup = 5   # A-E (sin Estado)
+    merge_end_sup = "E"
 
     ws4.row_dimensions[1].height = 8
     _banner(ws4, 2, "SEGUIMIENTO DE METAS FINANCIERAS · RIZKORA",
@@ -745,62 +717,46 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
     _sec_hdr(ws4, r4, "PLAN DE INVERSIÓN Y COBERTURA", merge_to=merge_end_sup)
     r4 += 1
 
-    # Cabeceras tabla superior
-    # Col 1: Meta/Necesidad | Col 2..n+1: nombre pilar (monto objetivo) | n+2: Aportación obj. anual | n+3: Plazo años | n+4: Fecha inicio | n+5: Estado
+    # Cabeceras: Meta/Necesidad | Monto Objetivo | Aportación Obj Anual | Plazo | Fecha inicio
     ws4.row_dimensions[r4].height = 28
     _hdr(ws4, r4, 1, "Meta / Necesidad", sz=9)
     _hdr(ws4, r4, 2, "Monto Objetivo ($)", sz=9)
     _hdr(ws4, r4, 3, "Aportación Objetivo Anual ($)", sz=9)
     _hdr(ws4, r4, 4, "Plazo (Años)", sz=9)
     _hdr(ws4, r4, 5, "Fecha de Inicio", sz=9)
-    _hdr(ws4, r4, 6, "Estado", sz=9)
-    # Rellenar resto si hay más cols
-    for extra_col in range(7, total_cols_sup + 1):
-        c = ws4.cell(row=r4, column=extra_col)
-        c.fill = _fill(AZ_OSC); c.border = _border()
     r4 += 1
 
-    # Filas de pilares
-    META_ANUAL_ROWS = {}  # pilar_idx -> row (para referencia desde tabla inferior)
-    for i, (nombre, monto_obj, aport_anual) in enumerate(pilares):
+    # Recalcular pilar de proyecto: usar inversion_requerida (costo - ahorro_actual)
+    pilares_reales = []
+    for nombre, monto_obj, _ in pilares:
+        # Para el proyecto, el monto objetivo es la inversión requerida (ya descontado ahorro)
+        if nombre not in ["Protección (vida / GMM)", "Retiro / Pensión",
+                          "Educación hijos", "Fondo de emergencia"]:
+            monto_real = _float(aho.get("inversion_requerida",
+                                        max(0, _float(aho.get("costo", 0)) - _float(aho.get("ahorro_actual", 0)))))
+            pilares_reales.append((nombre, monto_real, 0))
+        else:
+            pilares_reales.append((nombre, monto_obj, 0))
+
+    # Filas de pilares (Aportación Objetivo Anual siempre en blanco para que el asesor llene)
+    META_ANUAL_ROWS = {}
+    for i, (nombre, monto_obj, _) in enumerate(pilares_reales):
         r = r4 + i
         ws4.row_dimensions[r].height = 22
         bg = AZ_CLAR if i % 2 == 0 else BLANCO
         _data(ws4, r, 1, nombre, bg=bg, h="left", bold=True)
         _data(ws4, r, 2, monto_obj if monto_obj else None,
               num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)
-        _data(ws4, r, 3, aport_anual if aport_anual else None,
-              num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)
-        _data(ws4, r, 4, None, num_fmt='0', bg=bg, fc=AZUL_INP)       # Plazo años
-        _data(ws4, r, 5, None, num_fmt="DD/MM/YYYY", bg=bg, fc=AZUL_INP)  # Fecha inicio
-        # Estado automático basado en si tiene monto
-        c_est = ws4.cell(row=r, column=6,
-                         value=f'=IF(B{r}>0,"🔴 Iniciar","—")')
-        c_est.font = _ft(bold=True, sz=10); c_est.fill = _fill(bg)
-        c_est.border = _border(); c_est.alignment = _align(h="center")
-        # Cols sobrantes
-        for extra_col in range(7, total_cols_sup + 1):
-            c = ws4.cell(row=r, column=extra_col)
-            c.fill = _fill(bg); c.border = _border()
+        _data(ws4, r, 3, None, num_fmt=FMT_PESOS, bg=bg, fc=AZUL_INP)   # Aportación anual — vacío
+        _data(ws4, r, 4, None, num_fmt='0', bg=bg, fc=AZUL_INP)          # Plazo años
+        _data(ws4, r, 5, None, num_fmt="DD/MM/YYYY", bg=bg, fc=AZUL_INP) # Fecha inicio
         META_ANUAL_ROWS[i] = r
 
-    r4 += len(pilares) + 2
+    r4 += len(pilares_reales) + 2
 
     # ── TABLA INFERIOR: Aportaciones mensuales (transpuesta) ─────────────
-    # Estructura:
-    # Col 1 = Pilar (fila encabezado) / Mes (filas de datos) / "TOTAL MES" (última fila)
-    # Col 2..n+1 = meses Ene..Dic (en encabezado) / valores por mes
-    # Col n+2 = TOTAL AÑO
-    # Col n+3 = CUMPLIDO (vs objetivo anual tabla superior)
-
     total_cols_inf = 1 + 12 + 2   # pilar + 12 meses + total año + cumplido
     merge_end_inf = get_column_letter(total_cols_inf)
-
-    # Anclar anchos para columnas de meses
-    for m in range(12):
-        ws4.column_dimensions[get_column_letter(2 + m)].width = 11
-    ws4.column_dimensions[get_column_letter(14)].width = 16  # TOTAL AÑO
-    ws4.column_dimensions[get_column_letter(15)].width = 14  # CUMPLIDO
 
     _sec_hdr(ws4, r4, "APORTACIONES REALES AL PLAN (por pilar)", merge_to=merge_end_inf)
     r4 += 1
@@ -817,7 +773,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
 
     # Una fila por pilar
     AP_PILAR_ROWS = {}
-    for i, (nombre, _, aport_anual) in enumerate(pilares):
+    for i, (nombre, _, aport_anual) in enumerate(pilares_reales):
         ws4.row_dimensions[r4].height = 22
         bg = AZ_CLAR if i % 2 == 0 else BLANCO
 
@@ -858,7 +814,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
     c_tot_lbl.alignment = _align(h="left")
 
     first_ap = AP_PILAR_ROWS[0]
-    last_ap  = AP_PILAR_ROWS[len(pilares) - 1]
+    last_ap  = AP_PILAR_ROWS[len(pilares_reales) - 1]
 
     for m_i in range(12):
         cl = get_column_letter(2 + m_i)
