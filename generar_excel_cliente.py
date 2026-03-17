@@ -313,7 +313,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         c14.font = _ft(bold=bold, color=fc); c14.fill = _fill(bg_row)
         c14.border = _border(); c14.number_format = num_fmt or FMT_PESOS
         c14.alignment = _align(h="center")
-        c15 = ws.cell(row=row, column=15, value=f"=IFERROR(N{row}/12,0)")
+        c15 = ws.cell(row=row, column=15, value=f"=SUM(B{row}:M{row})")
         c15.font = _ft(bold=bold, color=fc); c15.fill = _fill(bg_row)
         c15.border = _border(); c15.number_format = num_fmt or FMT_PESOS
         c15.alignment = _align(h="center")
@@ -331,7 +331,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
             cell.border = _border(); cell.number_format = FMT_PESOS
             cell.alignment = _align(h="center")
         for col, formula in [(14, f"=SUM(B{row}:M{row})"),
-                              (15, f"=IFERROR(N{row}/12,0)")]:
+                              (15, f"=SUM(B{row}:M{row})")]:
             cell = ws.cell(row=row, column=col, value=formula)
             cell.font = _ft(bold=True, color=fc); cell.fill = _fill(bg_total)
             cell.border = _border(); cell.number_format = FMT_PESOS
@@ -449,7 +449,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         cell.font = _ft(bold=True, sz=11, color=BLANCO); cell.fill = _fill(VERDE)
         cell.border = _border(); cell.number_format = FMT_PESOS
         cell.alignment = _align(h="center")
-    for col, fml in [(14, f"=SUM(B{row}:M{row})"), (15, f"=IFERROR(N{row}/12,0)")]:
+    for col, fml in [(14, f"=SUM(B{row}:M{row})"), (15, f"=SUM(B{row}:M{row})")]:
         cell = ws2.cell(row=row, column=col, value=fml)
         cell.font = _ft(bold=True, color=BLANCO); cell.fill = _fill(VERDE)
         cell.border = _border(); cell.number_format = FMT_PESOS
