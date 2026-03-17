@@ -300,7 +300,8 @@ if 'datos' not in st.session_state:
         'ahorro': {},
         'retiro': {},
         'educacion': {},
-        'cierre': {}
+        'cierre': {},
+        'recomendaciones_asesor': '',
     }
 
 if 'google_sheets_habilitado' not in st.session_state:
@@ -709,6 +710,7 @@ def generar_graficos_necesidades():
         
         color_map = {
             'proteccion': COLORES['azul_principal'],
+            'fondo_emergencia': '#E65100',
             'retiro': COLORES['verde_oscuro'],
             'educacion': COLORES['verde_agua'],
             'ahorro': COLORES['amarillo']
@@ -716,6 +718,7 @@ def generar_graficos_necesidades():
         
         nombre_map = {
             'proteccion': 'Protección',
+            'fondo_emergencia': 'Fondo Emergencia',
             'retiro': 'Retiro',
             'educacion': 'Educación',
             'ahorro': 'Ahorro/Proyecto'
@@ -1481,44 +1484,22 @@ elif st.session_state.step == 3:
                 st.warning(f"⚠️ Gastos fijos elevados: {flujo['porcentaje_gastos_fijos']:.1f}%")
         
         st.markdown("---")
-        
-        # CAPACIDAD DE AHORRO
-        st.subheader("💎 Capacidad de Ahorro e Inversión")
-        
-        if capacidad['ahorro_posible']:
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                st.metric("Rango Mínimo", formatear_moneda(capacidad['rango_min']),
-                    f"{capacidad['porcentaje_min']:.0f}% del flujo")
-            
-            with col2:
-                st.metric("Ahorro Sugerido", formatear_moneda(capacidad['ahorro_sugerido']), "Recomendado")
-            
-            with col3:
-                st.metric("Rango Máximo", formatear_moneda(capacidad['rango_max']),
-                    f"{capacidad['porcentaje_max']:.0f}% del flujo")
-            
-            st.info(f"💡 {capacidad['mensaje']}")
-            
-            # Referencias adicionales
-            st.write("**Referencias de ahorro ideal:**")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.write(f"• Ahorro mínimo (5% ingreso): {formatear_moneda(capacidad['ahorro_minimo'])}")
-            with col2:
-                st.write(f"• Ahorro óptimo (10% ingreso): {formatear_moneda(capacidad['ahorro_optimo'])}")
-            
+        st.subheader("💵 Disponibilidad Económica Real")
+        flujo_libre_real = flujo['flujo_libre']
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Ingreso mensual", formatear_moneda(flujo['ingreso_mensual']))
+        with col2:
+            st.metric("Total de gastos actuales", formatear_moneda(flujo['gastos_totales']))
+        with col3:
+            st.metric("Disponible para invertir", formatear_moneda(flujo_libre_real),
+                      delta="Para distribuir entre tus metas" if flujo_libre_real > 0 else "Sin disponibilidad",
+                      delta_color="normal" if flujo_libre_real > 0 else "inverse")
+        if flujo_libre_real > 0:
+            st.success(f"✅ Tienes **{formatear_moneda(flujo_libre_real)}** disponibles cada mes para trabajar en tus metas financieras.")
         else:
-            st.error("⚠️ " + capacidad['mensaje'])
-            st.warning("""
-            **Recomendación Urgente:**
-            
-            1. Reducir gastos no esenciales
-            2. Generar un plan de pago de deudas
-            3. Buscar formas de aumentar ingresos
-            4. Estabilizar tu situación financiera
-            """)
+            st.error("⚠️ Tu flujo libre es negativo. Es necesario ajustar gastos antes de planear inversiones.")
 
         st.markdown("---")
 
@@ -1538,7 +1519,7 @@ elif st.session_state.step == 3:
 
         real_necesidades = flujo['gastos_fijos']
         real_deseos      = flujo['gastos_variables'] + flujo['deudas']
-        real_ahorro      = capacidad.get('ahorro_sugerido', 0)
+        real_ahorro      = flujo_libre_real
 
         col1, col2, col3 = st.columns(3)
         with col1:
@@ -1578,23 +1559,6 @@ elif st.session_state.step == 3:
             | &nbsp;&nbsp;&nbsp;↳ *Deudas / compromisos* | — | *{formatear_moneda(flujo['deudas'])}* |
             | 💎 **Ahorro e Inversión (20%)** | {formatear_moneda(meta_20)} | {formatear_moneda(real_ahorro)} |
             """, unsafe_allow_html=True)
-
-        st.markdown("---")
-        st.subheader("💵 Disponibilidad Económica Real")
-        flujo_libre_real = flujo['flujo_libre']
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Ingreso mensual", formatear_moneda(ingreso_5030))
-        with col2:
-            st.metric("Total de gastos actuales", formatear_moneda(flujo['gastos_totales']))
-        with col3:
-            st.metric("Disponible para invertir", formatear_moneda(flujo_libre_real),
-                      delta="Para distribuir entre tus metas" if flujo_libre_real > 0 else "Sin disponibilidad",
-                      delta_color="normal" if flujo_libre_real > 0 else "inverse")
-        if flujo_libre_real > 0:
-            st.success(f"✅ Tienes **{formatear_moneda(flujo_libre_real)}** disponibles cada mes para trabajar en tus metas financieras.")
-        else:
-            st.error("⚠️ Tu flujo libre es negativo. Es necesario ajustar gastos antes de planear inversiones.")
 
         st.markdown("---")
         st.subheader("📄 Generar Reporte de Análisis Financiero")
@@ -1673,9 +1637,9 @@ elif st.session_state.step == 3:
         
         if capacidad['ahorro_posible']:
             with st.form("form_inversion_mensual"):
+                flujo_libre_inv = flujo['flujo_libre']
                 st.write(f"""
-                Tu capacidad de ahorro está entre **{formatear_moneda(capacidad['rango_min'])}** 
-                y **{formatear_moneda(capacidad['rango_max'])}** mensuales.
+                Según tu análisis, tienes **{formatear_moneda(flujo_libre_inv)}** disponibles mensualmente.
                 
                 ¿Cuánto estarías dispuesto a invertir mensualmente?
                 """)
@@ -1683,8 +1647,7 @@ elif st.session_state.step == 3:
                 inversion_propuesta = st.number_input(
                     "Inversión mensual propuesta*",
                     min_value=0.0,
-                    max_value=float(capacidad['rango_max'] * 1.5),
-                    value=float(capacidad['ahorro_sugerido']),
+                    value=float(max(0, flujo_libre_inv)),
                     step=100.0,
                     format="%.2f"
                 )
@@ -1759,8 +1722,8 @@ elif st.session_state.step == 4:
     else:
         with st.form("form_proteccion"):
             st.write("""
-            La protección financiera asegura que tu familia pueda mantener su nivel de vida 
-            en caso de fallecimiento, invalidez o enfermedad grave.
+            La protección financiera asegura que tu familia no se desestabilice financieramente 
+            en caso de que se te presentara una enfermedad grave, una invalidez, o en caso de que llegaras a faltar.
             """)
             
             reflexion = st.text_area(
@@ -1803,25 +1766,6 @@ elif st.session_state.step == 4:
                 key="radio_gmm"
             )
 
-            deducible_gmm = 0.0
-            coaseguro_gmm = 0.0
-            if tiene_gmm == "Sí":
-                col1, col2 = st.columns(2)
-                with col1:
-                    deducible_gmm = st.number_input(
-                        "Monto del deducible ($)",
-                        min_value=0.0,
-                        value=float(st.session_state.datos['proteccion'].get('deducible_gmm', 0)),
-                        step=500.0, format="%.2f"
-                    )
-                with col2:
-                    coaseguro_gmm = st.number_input(
-                        "Monto del coaseguro ($) — máx. $10,000",
-                        min_value=0.0, max_value=10000.0,
-                        value=float(min(st.session_state.datos['proteccion'].get('coaseguro_gmm', 0), 10000)),
-                        step=500.0, format="%.2f"
-                    )
-
             tiene_auto = st.radio(
                 "¿Cuentas con automóvil propio?*",
                 ["Sí", "No"],
@@ -1829,91 +1773,124 @@ elif st.session_state.step == 4:
                 key="radio_auto"
             )
 
-            valor_auto = 0.0
-            if tiene_auto == "Sí":
-                valor_auto = st.number_input(
-                    "Valor aproximado de tu automóvil ($)",
-                    min_value=0.0,
-                    value=float(st.session_state.datos['proteccion'].get('valor_auto', 0)),
-                    step=10000.0, format="%.2f"
-                )
-
-            if presupuesto_mensual > 0:
-                monto_proteccion = presupuesto_mensual * 24
-                ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
-                coaseguro_topado  = min(coaseguro_gmm, 10000.0)
-                fondo_emergencia  = (
-                    deducible_gmm + coaseguro_topado
-                    + (valor_auto * 0.10)
-                    + (ingreso_mensual_fe * 3)
-                    + (0 if tiene_gmm == "Sí" else 50000.0)
-                )
-
-                st.markdown("---")
-                st.subheader("📊 Cálculo de Protección")
-
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.metric("Monto Mensual Indicado", formatear_moneda(presupuesto_mensual))
-                with col2:
-                    st.metric("Protección Mínima Sugerida (24 meses)", formatear_moneda(monto_proteccion))
-                with col3:
-                    st.metric("Fondo de Emergencia Sugerido", formatear_moneda(fondo_emergencia))
-
-                with st.expander("Ver desglose del Fondo de Emergencia"):
-                    st.write(f"- Deducible GMM: **{formatear_moneda(deducible_gmm)}**")
-                    st.write(f"- Coaseguro GMM (topado a $10,000): **{formatear_moneda(coaseguro_topado)}**")
-                    st.write(f"- 10% del valor del auto: **{formatear_moneda(valor_auto * 0.10)}**")
-                    st.write(f"- 3 meses de ingreso: **{formatear_moneda(ingreso_mensual_fe * 3)}**")
-                    if tiene_gmm == "No":
-                        st.write("- Reserva médica (sin GMM): **$50,000.00**")
-                    st.write(f"**Total sugerido: {formatear_moneda(fondo_emergencia)}**")
-
-                st.success(f"""
-                💡 **Recomendación de Protección:**
-                Se sugiere un seguro de vida de al menos **{formatear_moneda(monto_proteccion)}**
-                (24 meses de tu necesidad mensual indicada).
-                """)
-            
             col1, col2 = st.columns(2)
             with col1:
                 if st.form_submit_button("⬅️ Anterior", use_container_width=True):
                     navegar_a_paso(3)
             with col2:
                 submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
-            
-            if submitted:
-                if presupuesto_mensual <= 0:
-                    st.error("❌ El presupuesto mensual debe ser mayor a 0")
-                elif not responsable1.strip():
-                    st.error("❌ Debe indicar al menos un responsable")
-                else:
-                    ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
-                    coaseguro_topado  = min(coaseguro_gmm, 10000.0)
-                    fondo_emergencia  = (
-                        deducible_gmm + coaseguro_topado
-                        + (valor_auto * 0.10)
-                        + (ingreso_mensual_fe * 3)
-                        + (0 if tiene_gmm == "Sí" else 50000.0)
-                    )
-                    st.session_state.datos['proteccion'] = {
-                        'aplica': True,
-                        'reflexion': reflexion,
-                        'responsable1': responsable1.strip(),
-                        'responsable2': responsable2.strip() if responsable2 else '',
-                        'presupuesto_mensual': presupuesto_mensual,
-                        'presupuesto_anual': presupuesto_mensual * 12,
-                        'monto_proteccion_sugerido': presupuesto_mensual * 24,
-                        'tiene_seguro_vida': tiene_seguro_vida,
-                        'tiene_gmm': tiene_gmm,
-                        'deducible_gmm': deducible_gmm,
-                        'coaseguro_gmm': coaseguro_gmm,
-                        'tiene_auto': tiene_auto,
-                        'valor_auto': valor_auto,
-                        'fondo_emergencia_sugerido': fondo_emergencia,
-                    }
-                    st.success("✅ Protección financiera configurada")
-                    navegar_a_paso(5)
+
+        # ── Campos condicionales FUERA del form para reactividad inmediata ──
+        deducible_gmm = 0.0
+        coaseguro_gmm = 0.0
+        if st.session_state.get("radio_gmm", st.session_state.datos['proteccion'].get('tiene_gmm', 'No')) == "Sí":
+            st.markdown("#### Datos de tu GMM")
+            col1, col2 = st.columns(2)
+            with col1:
+                deducible_gmm = st.number_input(
+                    "Monto del deducible ($)",
+                    min_value=0.0,
+                    value=float(st.session_state.datos['proteccion'].get('deducible_gmm', 0)),
+                    step=500.0, format="%.2f",
+                    key="input_deducible_gmm"
+                )
+            with col2:
+                coaseguro_gmm = st.number_input(
+                    "Monto del coaseguro ($) — máx. $10,000",
+                    min_value=0.0, max_value=10000.0,
+                    value=float(min(st.session_state.datos['proteccion'].get('coaseguro_gmm', 0), 10000)),
+                    step=500.0, format="%.2f",
+                    key="input_coaseguro_gmm"
+                )
+
+        valor_auto = 0.0
+        if st.session_state.get("radio_auto", st.session_state.datos['proteccion'].get('tiene_auto', 'No')) == "Sí":
+            st.markdown("#### Datos de tu Automóvil")
+            valor_auto = st.number_input(
+                "Valor aproximado de tu automóvil ($)",
+                min_value=0.0,
+                value=float(st.session_state.datos['proteccion'].get('valor_auto', 0)),
+                step=10000.0, format="%.2f",
+                key="input_valor_auto"
+            )
+
+        # ── Cálculo en vivo ──────────────────────────────────────────────
+        _presupuesto = float(st.session_state.datos['proteccion'].get('presupuesto_mensual', presupuesto_mensual))
+        _tiene_gmm   = st.session_state.get("radio_gmm", st.session_state.datos['proteccion'].get('tiene_gmm', 'No'))
+        _tiene_auto  = st.session_state.get("radio_auto", st.session_state.datos['proteccion'].get('tiene_auto', 'No'))
+
+        if presupuesto_mensual > 0 or _presupuesto > 0:
+            _pm = presupuesto_mensual if presupuesto_mensual > 0 else _presupuesto
+            monto_proteccion_calc = _pm * 24
+            ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
+            coaseguro_topado  = min(coaseguro_gmm, 10000.0)
+            fondo_emergencia_calc  = (
+                deducible_gmm + coaseguro_topado
+                + (valor_auto * 0.10)
+                + (ingreso_mensual_fe * 3)
+                + (0 if _tiene_gmm == "Sí" else 50000.0)
+            )
+
+            st.markdown("---")
+            st.subheader("📊 Cálculo de Protección")
+
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Monto Mensual Indicado", formatear_moneda(_pm))
+            with col2:
+                st.metric("Protección Mínima Sugerida (24 meses)", formatear_moneda(monto_proteccion_calc))
+            with col3:
+                st.metric("Fondo de Emergencia Sugerido", formatear_moneda(fondo_emergencia_calc))
+
+            with st.expander("Ver desglose del Fondo de Emergencia"):
+                st.write(f"- Deducible GMM: **{formatear_moneda(deducible_gmm)}**")
+                st.write(f"- Coaseguro GMM (topado a $10,000): **{formatear_moneda(coaseguro_topado)}**")
+                st.write(f"- 10% del valor del auto: **{formatear_moneda(valor_auto * 0.10)}**")
+                st.write(f"- 3 meses de ingreso: **{formatear_moneda(ingreso_mensual_fe * 3)}**")
+                if _tiene_gmm == "No":
+                    st.write("- Reserva médica (sin GMM): **$50,000.00**")
+                st.write(f"**Total sugerido: {formatear_moneda(fondo_emergencia_calc)}**")
+
+            st.success(f"""
+            💡 **Recomendación de Protección:**
+            Se sugiere un seguro de vida de al menos **{formatear_moneda(monto_proteccion_calc)}**
+            (24 meses de tu necesidad mensual indicada).
+            """)
+
+        if submitted:
+            if presupuesto_mensual <= 0:
+                st.error("❌ El presupuesto mensual debe ser mayor a 0")
+            elif not responsable1.strip():
+                st.error("❌ Debe indicar al menos un responsable")
+            else:
+                _tiene_gmm_s  = st.session_state.get("radio_gmm", "No")
+                _tiene_auto_s = st.session_state.get("radio_auto", "No")
+                ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
+                coaseguro_topado  = min(coaseguro_gmm, 10000.0)
+                fondo_emergencia_final = (
+                    deducible_gmm + coaseguro_topado
+                    + (valor_auto * 0.10)
+                    + (ingreso_mensual_fe * 3)
+                    + (0 if _tiene_gmm_s == "Sí" else 50000.0)
+                )
+                st.session_state.datos['proteccion'] = {
+                    'aplica': True,
+                    'reflexion': reflexion,
+                    'responsable1': responsable1.strip(),
+                    'responsable2': responsable2.strip() if responsable2 else '',
+                    'presupuesto_mensual': presupuesto_mensual,
+                    'presupuesto_anual': presupuesto_mensual * 12,
+                    'monto_proteccion_sugerido': presupuesto_mensual * 24,
+                    'tiene_seguro_vida': tiene_seguro_vida,
+                    'tiene_gmm': _tiene_gmm_s,
+                    'deducible_gmm': deducible_gmm,
+                    'coaseguro_gmm': coaseguro_gmm,
+                    'tiene_auto': _tiene_auto_s,
+                    'valor_auto': valor_auto,
+                    'fondo_emergencia_sugerido': fondo_emergencia_final,
+                }
+                st.success("✅ Protección financiera configurada")
+                navegar_a_paso(5)
 
 # ================================
 # PASO 5: AHORRO / CRISIS / PROYECTOS
@@ -2272,20 +2249,13 @@ elif st.session_state.step == 8:
 
     datos_tabla = {
         'Pilar': ['🛡️ Protección (vida/invalidez)', '🚨 Fondo de Emergencia',
-                  '👴 Retiro', '🎓 Educación', '💰 Ahorro/Proyecto'],
-        'Monto Estimado': [
+                  '👴 Plan de ahorro para el retiro', '🎓 Educación', '💰 Ahorro/Proyecto'],
+        'Monto Mínimo Deseado': [
             formatear_moneda(necesidades['montos']['proteccion']),
             formatear_moneda(necesidades['montos']['fondo_emergencia']),
             formatear_moneda(necesidades['montos']['retiro']),
             formatear_moneda(necesidades['montos']['educacion']),
             formatear_moneda(necesidades['montos']['ahorro']),
-        ],
-        'Aportación Mensual': [
-            formatear_moneda(prot_datos.get('presupuesto_mensual', 0)),
-            "—",
-            formatear_moneda(st.session_state.datos['retiro'].get('ahorro_mensual_sugerido', 0)),
-            formatear_moneda(st.session_state.datos['educacion'].get('ahorro_mensual_total', 0)),
-            formatear_moneda(st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0)),
         ],
         'Prioridad': [],
     }
@@ -2301,102 +2271,22 @@ elif st.session_state.step == 8:
 
     st.markdown("---")
 
-    # Capacidad vs Necesidad
-    st.subheader("📊 Análisis de Capacidad")
+    # Recuadro de recomendaciones del asesor
+    st.subheader("📝 Recomendaciones del Asesor")
+    st.info("💡 Captura aquí tus recomendaciones personalizadas para este cliente. Este texto aparecerá en el reporte final.")
 
-    inversion_mensual = st.session_state.datos['ingresos'].get('inversion_mensual', 0)
-    ingreso_mensual   = st.session_state.datos['ingresos'].get('ingreso_mensual', 0)
+    recomendaciones_asesor = st.text_area(
+        "Recomendaciones y observaciones:",
+        value=st.session_state.datos.get('recomendaciones_asesor', ''),
+        height=180,
+        placeholder="Escribe aquí tus recomendaciones para el cliente basadas en el análisis realizado...",
+        key="textarea_recomendaciones_asesor"
+    )
 
-    necesidad_mensual_total = 0
-    if necesidades['montos']['proteccion'] > 0:
-        necesidad_mensual_total += prot_datos.get('presupuesto_mensual', 0)
-    necesidad_mensual_total += st.session_state.datos['retiro'].get('ahorro_mensual_sugerido', 0)
-    necesidad_mensual_total += st.session_state.datos['educacion'].get('ahorro_mensual_total', 0)
-    if st.session_state.datos['ahorro'].get('tiene_proyecto') == "Sí":
-        necesidad_mensual_total += st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0)
+    if st.button("💾 Guardar recomendaciones", key="btn_guardar_rec"):
+        st.session_state.datos['recomendaciones_asesor'] = recomendaciones_asesor
+        st.success("✅ Recomendaciones guardadas")
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.metric("Inversión Mensual Disponible", formatear_moneda(inversion_mensual))
-    with col2:
-        st.metric("Necesidad Mensual Estimada", formatear_moneda(necesidad_mensual_total))
-    with col3:
-        brecha = inversion_mensual - necesidad_mensual_total
-        st.metric("Brecha", formatear_moneda(brecha),
-                 delta="Superávit" if brecha >= 0 else "Déficit")
-
-    if brecha < 0:
-        st.warning(f"""
-        ⚠️ **Atención:** Existe un déficit de {formatear_moneda(abs(brecha))} entre tu capacidad
-        de inversión y las necesidades detectadas. Se recomienda priorizar las necesidades más urgentes.
-        """)
-    else:
-        st.success(f"✅ Tu capacidad de inversión cubre las necesidades detectadas con un margen de {formatear_moneda(brecha)}.")
-
-    st.markdown("---")
-
-    # Recomendaciones inteligentes
-    st.subheader("📋 Recomendaciones para la Asesoría")
-
-    recomendaciones = []
-
-    if necesidades['montos']['proteccion'] > 0:
-        monto_prot = necesidades['montos']['proteccion']
-        if not tiene_seguro_vida:
-            recomendaciones.append(
-                f"🛡️ **#1 – Protección (URGENTE):** No cuentas con seguro de vida. "
-                f"Se recomienda contratar un seguro de al menos **{formatear_moneda(monto_prot)}** "
-                f"(24 meses de tu necesidad mensual indicada)."
-            )
-        else:
-            recomendaciones.append(
-                f"🛡️ **Protección:** Ya cuentas con seguro de vida. Verifica que tu cobertura "
-                f"sea de al menos **{formatear_moneda(monto_prot)}**."
-            )
-
-    fondo_e = necesidades['montos']['fondo_emergencia']
-    if fondo_e > 0:
-        recomendaciones.append(
-            f"🚨 **Fondo de Emergencia:** Constituir un fondo de **{formatear_moneda(fondo_e)}**. "
-            f"Diversifica el monto disponible mensual entre este fondo y el retiro hasta alcanzarlo."
-        )
-
-    if necesidades['montos']['retiro'] > 0:
-        recomendaciones.append(
-            f"👴 **Retiro:** Una vez cubierta la protección y el fondo de emergencia, "
-            f"destinar **{formatear_moneda(st.session_state.datos['retiro'].get('ahorro_mensual_sugerido', 0))}** "
-            f"mensuales al plan de retiro."
-        )
-
-    if necesidades['montos']['educacion'] > 0:
-        recomendaciones.append(
-            f"🎓 **Educación:** Plan educativo que requiere "
-            f"**{formatear_moneda(st.session_state.datos['educacion'].get('ahorro_mensual_total', 0))}** mensuales."
-        )
-
-    if st.session_state.datos['ahorro'].get('tiene_proyecto') == "Sí":
-        desc_proy = st.session_state.datos['ahorro'].get('descripcion_proyecto', '').lower()
-        ahorro_m  = st.session_state.datos['ahorro'].get('ahorro_mensual_sugerido', 0)
-        if any(p in desc_proy for p in ['viaje', 'viajes', 'vacacion', 'vacaciones', 'trip']):
-            recomendaciones.append(
-                f"✈️ **Proyecto – Viaje:** Reduce tus gastos de deseos/variables y destina ese ahorro extra "
-                f"(**{formatear_moneda(ahorro_m)}** sugeridos) a un fondo separado para viajes."
-            )
-        elif any(p in desc_proy for p in ['negocio', 'empresa', 'emprender', 'emprendimiento']):
-            recomendaciones.append(
-                f"💼 **Proyecto – Negocio:** Una vez completado el fondo de emergencia, "
-                f"empieza a ahorrar **{formatear_moneda(ahorro_m)}** mensuales para este proyecto."
-            )
-        else:
-            recomendaciones.append(
-                f"💰 **Proyecto ({st.session_state.datos['ahorro'].get('descripcion_proyecto', '')}):** "
-                f"Ahorro sistemático de **{formatear_moneda(ahorro_m)}** mensuales "
-                f"(iniciar después de constituir el fondo de emergencia)."
-            )
-
-    for rec in recomendaciones:
-        st.write(rec)
-    
     st.markdown("---")
     
     col1, col2 = st.columns(2)
@@ -2405,6 +2295,9 @@ elif st.session_state.step == 8:
             navegar_a_paso(7)
     with col2:
         if st.button("➡️ Siguiente", type="primary", use_container_width=True):
+            # Guardar recomendaciones si se escribieron
+            if st.session_state.get("textarea_recomendaciones_asesor"):
+                st.session_state.datos['recomendaciones_asesor'] = st.session_state["textarea_recomendaciones_asesor"]
             navegar_a_paso(9)
 
 # ================================
@@ -2535,6 +2428,12 @@ elif st.session_state.step == 9:
                 **Agente:** {st.session_state.datos['datos_generales'].get('nombre_agente')}
                 **Fecha:** {st.session_state.datos['datos_generales'].get('fecha_asesoria')}
                 """)
+
+                rec_asesor = st.session_state.datos.get('recomendaciones_asesor', '')
+                if rec_asesor:
+                    st.markdown("---")
+                    st.subheader("📝 Recomendaciones del Asesor")
+                    st.info(rec_asesor)
     
     # BOTONES DE DESCARGA FUERA DEL FORMULARIO
     # Solo mostrar si ya se completó la asesoría
@@ -2619,7 +2518,8 @@ elif st.session_state.step == 9:
                         'ahorro': {},
                         'retiro': {},
                         'educacion': {},
-                        'cierre': {}
+                        'cierre': {},
+                        'recomendaciones_asesor': '',
                     }
                     st.session_state.confirmar_reinicio = False
                     st.session_state.edad_calculada_temp = None
