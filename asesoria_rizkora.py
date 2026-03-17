@@ -1634,7 +1634,7 @@ elif st.session_state.step == 3:
         
         # PREGUNTA FINAL: INVERSIÓN MENSUAL
         st.subheader("💼 Capacidad de Inversión Mensual")
-        
+
         if capacidad['ahorro_posible']:
             with st.form("form_inversion_mensual"):
                 flujo_libre_inv = flujo['flujo_libre']
@@ -1643,7 +1643,7 @@ elif st.session_state.step == 3:
                 
                 ¿Cuánto estarías dispuesto a invertir mensualmente?
                 """)
-                
+
                 inversion_propuesta = st.number_input(
                     "Inversión mensual propuesta*",
                     min_value=0.0,
@@ -1651,43 +1651,30 @@ elif st.session_state.step == 3:
                     step=100.0,
                     format="%.2f"
                 )
-                
+
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.form_submit_button("⬅️ Regresar", use_container_width=True):
                         st.session_state.datos.pop('flujo_financiero', None)
                         st.session_state.datos.pop('capacidad_ahorro', None)
                         st.rerun()
-                
                 with col2:
                     if st.form_submit_button("➡️ Continuar", type="primary", use_container_width=True):
-                        # Validar inversión propuesta
-                        validacion = validar_inversion_propuesta(inversion_propuesta, capacidad)
-                        
-                        if validacion['valida']:
-                            st.session_state.datos['ingresos']['inversion_mensual'] = inversion_propuesta
-                            st.success(validacion['mensaje'])
-                            navegar_a_paso(4)
-                        else:
-                            st.warning(validacion['mensaje'])
-                            st.session_state.datos['ingresos']['inversion_mensual'] = validacion['monto_ajustado']
-                            
-                            if st.button("Aceptar monto ajustado", type="primary"):
-                                navegar_a_paso(4)
+                        st.session_state.datos['ingresos']['inversion_mensual'] = inversion_propuesta
+                        navegar_a_paso(4)
         else:
             st.error("""
             ⚠️ **No puedes continuar con inversiones ahora**
             
             Tu situación requiere estabilización financiera primero.
             """)
-            
+
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("⬅️ Regresar", use_container_width=True):
                     st.session_state.datos.pop('flujo_financiero', None)
                     st.session_state.datos.pop('capacidad_ahorro', None)
                     st.rerun()
-            
             with col2:
                 if st.button("Continuar ➡️", type="secondary", use_container_width=True):
                     st.session_state.datos['ingresos']['inversion_mensual'] = 0
