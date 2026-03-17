@@ -291,7 +291,7 @@ def generar_excel_seguimiento(datos: dict) -> BytesIO:
         c14.alignment = _align(h="center")
         # Promedio
         c15 = ws.cell(row=row, column=15,
-                      value=f"=IFERROR(N{row}/COUNTIF(B{row}:M{row},\"<>0\"),0)")
+                      value=f"=IFERROR(N{row}/COUNTIF(B{row}:M{row},\"<>\"),0)")
         c15.font = _ft(bold=True); c15.fill = _fill(VERDE_CL)
         c15.border = _border(); c15.number_format = FMT_PESOS
         c15.alignment = _align(h="center")
