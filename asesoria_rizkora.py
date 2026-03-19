@@ -147,57 +147,57 @@ st.markdown(
         }
 
         /* ================================
-           BOTONES NORMALES
+           TODOS LOS BOTONES — regla única
+           Cubre: st.button, st.form_submit_button,
+                  st.download_button y sidebar buttons
         ================================= */
-        .stButton>button {
+
+        /* Botones normales */
+        .stButton > button,
+        /* Botones submit dentro de form */
+        div[data-testid="stFormSubmitButton"] > button,
+        /* Botones de descarga */
+        div[data-testid="stDownloadButton"] > button {
             background-color: #053a5c !important;
             color: #ffffff !important;
             border: 1px solid #053a5c !important;
+            transition: background-color 0.15s ease, border-color 0.15s ease;
         }
 
-        .stButton>button:hover {
+        .stButton > button:hover,
+        div[data-testid="stFormSubmitButton"] > button:hover,
+        div[data-testid="stDownloadButton"] > button:hover {
             background-color: #032a42 !important;
             border: 1px solid #032a42 !important;
             color: #ffffff !important;
         }
 
-        /* ================================
-           BOTONES DENTRO DE FORM
-        ================================= */
-        button[type="submit"] {
+        /* Botón primario (type="primary") — mismo color base, tono más intenso en hover */
+        .stButton > button[kind="primary"],
+        div[data-testid="stFormSubmitButton"] > button[kind="primary"],
+        div[data-testid="stDownloadButton"] > button[kind="primary"] {
             background-color: #053a5c !important;
-            color: #ffffff !important;
             border: 1px solid #053a5c !important;
         }
 
-        button[type="submit"]:hover {
-            background-color: #032a42 !important;
-            border: 1px solid #032a42 !important;
-            color: #ffffff !important;
+        .stButton > button[kind="primary"]:hover,
+        div[data-testid="stFormSubmitButton"] > button[kind="primary"]:hover,
+        div[data-testid="stDownloadButton"] > button[kind="primary"]:hover {
+            background-color: #021e2e !important;
+            border: 1px solid #021e2e !important;
         }
 
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-st.markdown(
-    """
-    <style>
-
-        /* ================================
-           BOTONES st.form_submit_button
-        ================================= */
-
-        div[data-testid="stFormSubmitButton"] button {
+        /* Botón secundario */
+        .stButton > button[kind="secondary"],
+        div[data-testid="stFormSubmitButton"] > button[kind="secondary"] {
             background-color: #053a5c !important;
-            color: #ffffff !important;
             border: 1px solid #053a5c !important;
         }
 
-        div[data-testid="stFormSubmitButton"] button:hover {
+        .stButton > button[kind="secondary"]:hover,
+        div[data-testid="stFormSubmitButton"] > button[kind="secondary"]:hover {
             background-color: #032a42 !important;
             border: 1px solid #032a42 !important;
-            color: #ffffff !important;
         }
 
     </style>
@@ -865,17 +865,6 @@ with st.sidebar:
         st.markdown("---")
         st.subheader("💾 Exportar")
         
-        # JSON
-        if st.button("📥 Descargar JSON", use_container_width=True):
-            json_data = exportar_json()
-            st.download_button(
-                label="📄 Descargar JSON",
-                data=json_data,
-                file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente')}_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json",
-                use_container_width=True
-            )
-        
         # PDF
         if st.button("📑 Generar PDF", use_container_width=True):
             with st.spinner("Generando PDF..."):
@@ -1165,43 +1154,32 @@ elif st.session_state.step == 2:
                 dependientes.append({'nombre': nombre_dep, 'edad': edad_dep})
     
     st.markdown("---")
-    
-    # 4. BOTONES DE NAVEGACIÓN - DENTRO DE FORMULARIO solo para organizar
-    with st.form("form_navegacion_perfil"):
-        col1, col2 = st.columns(2)
-        with col1:
-            anterior_btn = st.form_submit_button("⬅️ Anterior", use_container_width=True)
-        with col2:
-            siguiente_btn = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
-        
-        if anterior_btn:
+
+    # ── Botones de navegación sin form ────────────────────────────────────
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅️ Anterior", key="perf_anterior", use_container_width=True):
             navegar_a_paso(1)
-        
-        if siguiente_btn:
-            # Validaciones
+    with col2:
+        if st.button("➡️ Siguiente", key="perf_siguiente", type="primary", use_container_width=True):
             errores = []
-            
             if tiene_pareja == "Sí":
                 if not nombre_pareja.strip():
                     errores.append("El nombre de la pareja es obligatorio")
                 if edad_pareja is None:
                     errores.append("La edad de la pareja es obligatoria")
-            
             if tiene_hijos == "Sí":
                 for i, hijo in enumerate(hijos):
                     if not hijo['nombre'].strip():
                         errores.append(f"El nombre del hijo {i+1} es obligatorio")
-            
             if tiene_dependientes == "Sí":
                 for i, dep in enumerate(dependientes):
                     if not dep['nombre'].strip():
                         errores.append(f"El nombre del dependiente {i+1} es obligatorio")
-            
             if errores:
                 for error in errores:
                     st.error(f"❌ {error}")
             else:
-                # Guardar datos en session state
                 st.session_state.datos['perfil_familiar'] = {
                     'tiene_pareja': tiene_pareja,
                     'nombre_pareja': nombre_pareja if tiene_pareja == "Sí" else '',
@@ -1213,7 +1191,6 @@ elif st.session_state.step == 2:
                     'num_dependientes': len(dependientes) if tiene_dependientes == "Sí" else 0,
                     'dependientes': dependientes if tiene_dependientes == "Sí" else []
                 }
-                
                 st.success("✅ Perfil familiar guardado")
                 navegar_a_paso(3)
 # ================================
@@ -1707,70 +1684,71 @@ elif st.session_state.step == 4:
                 }
                 navegar_a_paso(5)
     else:
-        with st.form("form_proteccion"):
-            st.write("""
-            La protección financiera asegura que tu familia no se desestabilice financieramente 
-            en caso de que se te presentara una enfermedad grave, una invalidez, o en caso de que llegaras a faltar.
-            """)
-            
-            reflexion = st.text_area(
-                "¿Qué pasaría con tu familia si fallecieras, tuvieras invalidez o enfermedad grave?",
-                value=st.session_state.datos['proteccion'].get('reflexion', ''),
-                height=100
-            )
-            
-            st.subheader("Personas Responsables")
-            col1, col2 = st.columns(2)
-            with col1:
-                responsable1 = st.text_input("Responsable 1", 
-                                            value=st.session_state.datos['proteccion'].get('responsable1', ''))
-            with col2:
-                responsable2 = st.text_input("Responsable 2 (opcional)", 
-                                            value=st.session_state.datos['proteccion'].get('responsable2', ''))
-            
-            presupuesto_mensual = st.number_input(
-                "¿Cuál es el monto mensual necesario para seguir cubriendo tus necesidades o las de tu familia en caso de presentarse una eventualidad?*",
-                min_value=0.0,
-                value=float(st.session_state.datos['proteccion'].get('presupuesto_mensual', 0)),
-                step=1000.0,
-                format="%.2f"
-            )
+        # ── Todos los inputs FUERA del form para reactividad total ───────────
+        st.write("""
+        La protección financiera asegura que tu familia no se desestabilice financieramente 
+        en caso de que se te presentara una enfermedad grave, una invalidez, o en caso de que llegaras a faltar.
+        """)
 
-            st.markdown("---")
-            st.subheader("🛡️ Coberturas Actuales")
+        reflexion = st.text_area(
+            "¿Qué pasaría con tu familia si fallecieras, tuvieras invalidez o enfermedad grave?",
+            value=st.session_state.datos['proteccion'].get('reflexion', ''),
+            height=100,
+            key="input_reflexion_prot"
+        )
 
-            tiene_seguro_vida = st.radio(
-                "¿Cuentas actualmente con algún seguro de vida y/o protección contra invalidez?*",
-                ["Sí", "No"],
-                index=0 if st.session_state.datos['proteccion'].get('tiene_seguro_vida') == "Sí" else 1,
-                key="radio_seguro_vida"
+        st.subheader("Personas Responsables")
+        col1, col2 = st.columns(2)
+        with col1:
+            responsable1 = st.text_input(
+                "Responsable 1",
+                value=st.session_state.datos['proteccion'].get('responsable1', ''),
+                key="input_responsable1"
+            )
+        with col2:
+            responsable2 = st.text_input(
+                "Responsable 2 (opcional)",
+                value=st.session_state.datos['proteccion'].get('responsable2', ''),
+                key="input_responsable2"
             )
 
-            tiene_gmm = st.radio(
-                "¿Cuentas con póliza de Gastos Médicos Mayores (GMM)?*",
-                ["Sí", "No"],
-                index=0 if st.session_state.datos['proteccion'].get('tiene_gmm') == "Sí" else 1,
-                key="radio_gmm"
-            )
+        presupuesto_mensual = st.number_input(
+            "¿Cuál es el monto mensual necesario para seguir cubriendo tus necesidades o las de tu familia en caso de presentarse una eventualidad?*",
+            min_value=0.0,
+            value=float(st.session_state.datos['proteccion'].get('presupuesto_mensual', 0)),
+            step=1000.0,
+            format="%.2f",
+            key="input_presupuesto_mensual_prot"
+        )
 
-            tiene_auto = st.radio(
-                "¿Cuentas con automóvil propio?*",
-                ["Sí", "No"],
-                index=0 if st.session_state.datos['proteccion'].get('tiene_auto') == "Sí" else 1,
-                key="radio_auto"
-            )
+        st.markdown("---")
+        st.subheader("🛡️ Coberturas Actuales")
 
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.form_submit_button("⬅️ Anterior", use_container_width=True):
-                    navegar_a_paso(3)
-            with col2:
-                submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
+        tiene_seguro_vida = st.radio(
+            "¿Cuentas actualmente con algún seguro de vida y/o protección contra invalidez?*",
+            ["Sí", "No"],
+            index=0 if st.session_state.datos['proteccion'].get('tiene_seguro_vida') == "Sí" else 1,
+            key="radio_seguro_vida"
+        )
 
-        # ── Campos condicionales FUERA del form para reactividad inmediata ──
+        tiene_gmm = st.radio(
+            "¿Cuentas con póliza de Gastos Médicos Mayores (GMM)?*",
+            ["Sí", "No"],
+            index=0 if st.session_state.datos['proteccion'].get('tiene_gmm') == "Sí" else 1,
+            key="radio_gmm"
+        )
+
+        tiene_auto = st.radio(
+            "¿Cuentas con automóvil propio?*",
+            ["Sí", "No"],
+            index=0 if st.session_state.datos['proteccion'].get('tiene_auto') == "Sí" else 1,
+            key="radio_auto"
+        )
+
+        # ── Campos condicionales (reaccionan inmediatamente) ─────────────────
         deducible_gmm = 0.0
         coaseguro_gmm = 0.0
-        if st.session_state.get("radio_gmm", st.session_state.datos['proteccion'].get('tiene_gmm', 'No')) == "Sí":
+        if tiene_gmm == "Sí":
             st.markdown("#### Datos de tu GMM")
             col1, col2 = st.columns(2)
             with col1:
@@ -1791,7 +1769,7 @@ elif st.session_state.step == 4:
                 )
 
         valor_auto = 0.0
-        if st.session_state.get("radio_auto", st.session_state.datos['proteccion'].get('tiene_auto', 'No')) == "Sí":
+        if tiene_auto == "Sí":
             st.markdown("#### Datos de tu Automóvil")
             valor_auto = st.number_input(
                 "Valor aproximado de tu automóvil ($)",
@@ -1801,21 +1779,16 @@ elif st.session_state.step == 4:
                 key="input_valor_auto"
             )
 
-        # ── Cálculo en vivo ──────────────────────────────────────────────
-        _presupuesto = float(st.session_state.datos['proteccion'].get('presupuesto_mensual', presupuesto_mensual))
-        _tiene_gmm   = st.session_state.get("radio_gmm", st.session_state.datos['proteccion'].get('tiene_gmm', 'No'))
-        _tiene_auto  = st.session_state.get("radio_auto", st.session_state.datos['proteccion'].get('tiene_auto', 'No'))
-
-        if presupuesto_mensual > 0 or _presupuesto > 0:
-            _pm = presupuesto_mensual if presupuesto_mensual > 0 else _presupuesto
-            monto_proteccion_calc = _pm * 24
-            ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
-            coaseguro_topado  = min(coaseguro_gmm, 10000.0)
-            fondo_emergencia_calc  = (
+        # ── Cálculo en vivo ──────────────────────────────────────────────────
+        if presupuesto_mensual > 0:
+            monto_proteccion_calc = presupuesto_mensual * 24
+            ingreso_mensual_fe    = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
+            coaseguro_topado      = min(coaseguro_gmm, 10000.0)
+            fondo_emergencia_calc = (
                 deducible_gmm + coaseguro_topado
                 + (valor_auto * 0.10)
                 + (ingreso_mensual_fe * 3)
-                + (0 if _tiene_gmm == "Sí" else 50000.0)
+                + (0 if tiene_gmm == "Sí" else 50000.0)
             )
 
             st.markdown("---")
@@ -1823,7 +1796,7 @@ elif st.session_state.step == 4:
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                st.metric("Monto Mensual Indicado", formatear_moneda(_pm))
+                st.metric("Monto Mensual Indicado", formatear_moneda(presupuesto_mensual))
             with col2:
                 st.metric("Protección Mínima Sugerida (24 meses)", formatear_moneda(monto_proteccion_calc))
             with col3:
@@ -1834,7 +1807,7 @@ elif st.session_state.step == 4:
                 st.write(f"- Coaseguro GMM (topado a $10,000): **{formatear_moneda(coaseguro_topado)}**")
                 st.write(f"- 10% del valor del auto: **{formatear_moneda(valor_auto * 0.10)}**")
                 st.write(f"- 3 meses de ingreso: **{formatear_moneda(ingreso_mensual_fe * 3)}**")
-                if _tiene_gmm == "No":
+                if tiene_gmm == "No":
                     st.write("- Reserva médica (sin GMM): **$50,000.00**")
                 st.write(f"**Total sugerido: {formatear_moneda(fondo_emergencia_calc)}**")
 
@@ -1844,40 +1817,45 @@ elif st.session_state.step == 4:
             (24 meses de tu necesidad mensual indicada).
             """)
 
-        if submitted:
-            if presupuesto_mensual <= 0:
-                st.error("❌ El presupuesto mensual debe ser mayor a 0")
-            elif not responsable1.strip():
-                st.error("❌ Debe indicar al menos un responsable")
-            else:
-                _tiene_gmm_s  = st.session_state.get("radio_gmm", "No")
-                _tiene_auto_s = st.session_state.get("radio_auto", "No")
-                ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
-                coaseguro_topado  = min(coaseguro_gmm, 10000.0)
-                fondo_emergencia_final = (
-                    deducible_gmm + coaseguro_topado
-                    + (valor_auto * 0.10)
-                    + (ingreso_mensual_fe * 3)
-                    + (0 if _tiene_gmm_s == "Sí" else 50000.0)
-                )
-                st.session_state.datos['proteccion'] = {
-                    'aplica': True,
-                    'reflexion': reflexion,
-                    'responsable1': responsable1.strip(),
-                    'responsable2': responsable2.strip() if responsable2 else '',
-                    'presupuesto_mensual': presupuesto_mensual,
-                    'presupuesto_anual': presupuesto_mensual * 12,
-                    'monto_proteccion_sugerido': presupuesto_mensual * 24,
-                    'tiene_seguro_vida': tiene_seguro_vida,
-                    'tiene_gmm': _tiene_gmm_s,
-                    'deducible_gmm': deducible_gmm,
-                    'coaseguro_gmm': coaseguro_gmm,
-                    'tiene_auto': _tiene_auto_s,
-                    'valor_auto': valor_auto,
-                    'fondo_emergencia_sugerido': fondo_emergencia_final,
-                }
-                st.success("✅ Protección financiera configurada")
-                navegar_a_paso(5)
+        # ── Botones de navegación (sin form para no interferir con reactividad) ──
+        st.markdown("---")
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("⬅️ Anterior", key="prot_anterior", use_container_width=True):
+                navegar_a_paso(3)
+        with col2:
+            if st.button("➡️ Siguiente", key="prot_siguiente", type="primary", use_container_width=True):
+                if presupuesto_mensual <= 0:
+                    st.error("❌ El presupuesto mensual debe ser mayor a 0")
+                elif not responsable1.strip():
+                    st.error("❌ Debe indicar al menos un responsable")
+                else:
+                    ingreso_mensual_fe = float(st.session_state.datos['ingresos'].get('ingreso_mensual', 0))
+                    coaseguro_topado   = min(coaseguro_gmm, 10000.0)
+                    fondo_emergencia_final = (
+                        deducible_gmm + coaseguro_topado
+                        + (valor_auto * 0.10)
+                        + (ingreso_mensual_fe * 3)
+                        + (0 if tiene_gmm == "Sí" else 50000.0)
+                    )
+                    st.session_state.datos['proteccion'] = {
+                        'aplica': True,
+                        'reflexion': reflexion,
+                        'responsable1': responsable1.strip(),
+                        'responsable2': responsable2.strip() if responsable2 else '',
+                        'presupuesto_mensual': presupuesto_mensual,
+                        'presupuesto_anual': presupuesto_mensual * 12,
+                        'monto_proteccion_sugerido': presupuesto_mensual * 24,
+                        'tiene_seguro_vida': tiene_seguro_vida,
+                        'tiene_gmm': tiene_gmm,
+                        'deducible_gmm': deducible_gmm,
+                        'coaseguro_gmm': coaseguro_gmm,
+                        'tiene_auto': tiene_auto,
+                        'valor_auto': valor_auto,
+                        'fondo_emergencia_sugerido': fondo_emergencia_final,
+                    }
+                    st.success("✅ Protección financiera configurada")
+                    navegar_a_paso(5)
 
 # ================================
 # PASO 5: AHORRO / CRISIS / PROYECTOS
@@ -1978,34 +1956,27 @@ elif st.session_state.step == 5:
 
     st.markdown("---")
 
-    # ── Botones de navegación en mini-form ────────────────────────────────
-    with st.form("form_ahorro_nav"):
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("⬅️ Anterior", use_container_width=True):
-                navegar_a_paso(4)
-        with col2:
-            submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
-
-        if submitted:
-            errores = []
-            _tiene_proyecto = st.session_state.get("radio_tiene_proyecto", "No")
-
+    # ── Botones de navegación sin form ────────────────────────────────────
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅️ Anterior", key="aho_anterior", use_container_width=True):
+            navegar_a_paso(4)
+    with col2:
+        if st.button("➡️ Siguiente", key="aho_siguiente", type="primary", use_container_width=True):
+            _tiene_proyecto = tiene_proyecto
+            errores_aho = []
             if _tiene_proyecto == "Sí":
-                if not st.session_state.get("input_descripcion_proyecto", "").strip():
-                    errores.append("Describe tu proyecto")
-                if st.session_state.get("input_costo_proyecto", 0) <= 0:
-                    errores.append("El costo del proyecto debe ser mayor a 0")
-
-            if errores:
-                for error in errores:
+                if not descripcion_proyecto.strip():
+                    errores_aho.append("Describe tu proyecto")
+                if costo_proyecto <= 0:
+                    errores_aho.append("El costo del proyecto debe ser mayor a 0")
+            if errores_aho:
+                for error in errores_aho:
                     st.error(f"❌ {error}")
             else:
-                _preparado = st.session_state.get("radio_preparado_crisis", "No")
-                _tiene_proy = st.session_state.get("radio_tiene_proyecto", "No")
                 st.session_state.datos['ahorro'] = {
-                    'preparado_crisis': _preparado,
-                    'tiene_proyecto': _tiene_proy,
+                    'preparado_crisis': preparado_crisis,
+                    'tiene_proyecto': _tiene_proyecto,
                     **proyecto_info
                 }
                 st.success("✅ Información de ahorro guardada")
@@ -2066,36 +2037,32 @@ elif st.session_state.step == 6:
 
     st.markdown("---")
 
-    # ── Botones en mini-form ───────────────────────────────────────────────
-    with st.form("form_retiro_nav"):
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.form_submit_button("⬅️ Anterior", use_container_width=True):
-                navegar_a_paso(5)
-        with col2:
-            submitted = st.form_submit_button("➡️ Siguiente", type="primary", use_container_width=True)
-
-        if submitted:
-            _ingreso = st.session_state.get("input_ingreso_retiro", 0)
-            _edad_r  = st.session_state.get("input_edad_retiro", 65)
-
+    # ── Botones de navegación sin form ────────────────────────────────────
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("⬅️ Anterior", key="ret_anterior", use_container_width=True):
+            navegar_a_paso(5)
+    with col2:
+        if st.button("➡️ Siguiente", key="ret_siguiente", type="primary", use_container_width=True):
+            _ingreso = ingreso_mensual_retiro
+            _edad_r  = edad_retiro
             if _ingreso <= 0:
                 st.error("❌ El ingreso mensual de retiro debe ser mayor a 0")
             elif _edad_r <= edad_actual:
                 st.error("❌ La edad de retiro debe ser mayor a tu edad actual")
             else:
-                _anos_para  = _edad_r - edad_actual
-                _anos_en    = max(1, 80 - _edad_r)
+                _anos_para   = _edad_r - edad_actual
+                _anos_en     = max(1, 80 - _edad_r)
                 _monto_total = _ingreso * 12 * _anos_en
                 st.session_state.datos['retiro'] = {
-                    'edad_retiro':            _edad_r,
-                    'ingreso_mensual_retiro': _ingreso,
-                    'anos_para_retiro':       _anos_para,
-                    'anos_en_retiro':         _anos_en,
-                    'monto_anual_retiro':     _ingreso * 12,
-                    'monto_total_retiro':     _monto_total,
+                    'edad_retiro':             _edad_r,
+                    'ingreso_mensual_retiro':  _ingreso,
+                    'anos_para_retiro':        _anos_para,
+                    'anos_en_retiro':          _anos_en,
+                    'monto_anual_retiro':      _ingreso * 12,
+                    'monto_total_retiro':      _monto_total,
                     'ahorro_mensual_sugerido': _monto_total / max(1, _anos_para * 12),
-                    'anios_ahorro':           _anos_para,
+                    'anios_ahorro':            _anos_para,
                 }
                 st.success("✅ Plan de retiro configurado")
                 navegar_a_paso(7)
@@ -2323,78 +2290,99 @@ elif st.session_state.step == 8:
 elif st.session_state.step == 9:
     st.header("9️⃣ Cierre de la Asesoría")
     
-    with st.form("form_cierre"):
-        st.subheader("📝 Retroalimentación")
-        
-        satisfaccion = st.text_area(
-            "¿Qué fue lo que más te agradó de esta asesoría?*",
-            value=st.session_state.datos['cierre'].get('satisfaccion', ''),
-            height=100
-        )
-        
-        segunda_cita = st.radio("¿Te gustaría agendar una segunda cita?*", ["Sí", "No"],
-                               index=0 if st.session_state.datos['cierre'].get('segunda_cita') == "Sí" else 1)
-        
-        fecha_segunda_cita = None
-        hora_segunda_cita = None
-        if segunda_cita == "Sí":
-            col1, col2 = st.columns(2)
-            with col1:
-                fecha_segunda_cita = st.date_input("Fecha de segunda cita",
-                                                   value=st.session_state.datos['cierre'].get('fecha_segunda_cita', date.today()),
-                                                   min_value=date.today())
-            with col2:
-                hora_segunda_cita = st.time_input("Hora de segunda cita",
-                                                 value=st.session_state.datos['cierre'].get('hora_segunda_cita'))
-        
+    # ── Campos de cierre FUERA del form para reactividad inmediata ──────────
+
+    st.subheader("📝 Retroalimentación")
+    satisfaccion = st.text_area(
+        "¿Qué fue lo que más te agradó de esta asesoría?*",
+        value=st.session_state.datos['cierre'].get('satisfaccion', ''),
+        height=100,
+        key="input_satisfaccion"
+    )
+
+    segunda_cita = st.radio(
+        "¿Te gustaría agendar una segunda cita?*", ["Sí", "No"],
+        index=0 if st.session_state.datos['cierre'].get('segunda_cita') == "Sí" else 1,
+        key="radio_segunda_cita"
+    )
+
+    fecha_segunda_cita = None
+    hora_segunda_cita  = None
+    if segunda_cita == "Sí":
+        col1, col2 = st.columns(2)
+        with col1:
+            fecha_segunda_cita = st.date_input(
+                "Fecha de segunda cita",
+                value=st.session_state.datos['cierre'].get('fecha_segunda_cita', date.today()),
+                min_value=date.today(),
+                key="input_fecha_segunda_cita"
+            )
+        with col2:
+            hora_segunda_cita = st.time_input(
+                "Hora de segunda cita",
+                value=st.session_state.datos['cierre'].get('hora_segunda_cita'),
+                key="input_hora_segunda_cita"
+            )
+
+    st.markdown("---")
+    st.subheader("👥 Referidos")
+    st.write("¿Conoces a alguien que pudiera beneficiarse de una asesoría financiera?")
+
+    num_referidos = st.number_input(
+        "¿Cuántos referidos tienes?",
+        min_value=0, max_value=5,
+        value=st.session_state.datos['cierre'].get('num_referidos', 0),
+        key="input_num_referidos"
+    )
+
+    referidos = []
+    referidos_previos = st.session_state.datos['cierre'].get('referidos', [])
+
+    for i in range(num_referidos):
+        st.write(f"**Referido {i+1}**")
+        col1, col2 = st.columns(2)
+        with col1:
+            nombre_ref = st.text_input(
+                "Nombre",
+                value=referidos_previos[i]['nombre'] if i < len(referidos_previos) else '',
+                key=f"nombre_ref_{i}"
+            )
+            edad_ref = st.number_input(
+                "Edad",
+                min_value=18, max_value=100,
+                value=referidos_previos[i]['edad'] if i < len(referidos_previos) else 30,
+                key=f"edad_ref_{i}"
+            )
+        with col2:
+            parentesco_ref = st.text_input(
+                "Parentesco/Relación",
+                value=referidos_previos[i]['parentesco'] if i < len(referidos_previos) else '',
+                placeholder="Ej: Hermano, Amigo, Compañero",
+                key=f"parentesco_ref_{i}"
+            )
+            comentarios_ref = st.text_area(
+                "Comentarios",
+                value=referidos_previos[i]['comentarios'] if i < len(referidos_previos) else '',
+                key=f"comentarios_ref_{i}",
+                height=60
+            )
+        referidos.append({
+            'nombre': nombre_ref,
+            'edad': edad_ref,
+            'parentesco': parentesco_ref,
+            'comentarios': comentarios_ref
+        })
         st.markdown("---")
-        st.subheader("👥 Referidos")
-        st.write("¿Conoces a alguien que pudiera beneficiarse de una asesoría financiera?")
-        
-        num_referidos = st.number_input("¿Cuántos referidos tienes?", 
-                                       min_value=0, max_value=5,
-                                       value=st.session_state.datos['cierre'].get('num_referidos', 0))
-        
-        referidos = []
-        referidos_previos = st.session_state.datos['cierre'].get('referidos', [])
-        
-        for i in range(num_referidos):
-            st.write(f"**Referido {i+1}**")
-            col1, col2 = st.columns(2)
-            with col1:
-                nombre_ref = st.text_input(f"Nombre", 
-                                          value=referidos_previos[i]['nombre'] if i < len(referidos_previos) else '',
-                                          key=f"nombre_ref_{i}")
-                edad_ref = st.number_input(f"Edad", 
-                                          min_value=18, max_value=100,
-                                          value=referidos_previos[i]['edad'] if i < len(referidos_previos) else 30,
-                                          key=f"edad_ref_{i}")
-            with col2:
-                parentesco_ref = st.text_input(f"Parentesco/Relación", 
-                                              value=referidos_previos[i]['parentesco'] if i < len(referidos_previos) else '',
-                                              placeholder="Ej: Hermano, Amigo, Compañero",
-                                              key=f"parentesco_ref_{i}")
-                comentarios_ref = st.text_area(f"Comentarios", 
-                                              value=referidos_previos[i]['comentarios'] if i < len(referidos_previos) else '',
-                                              key=f"comentarios_ref_{i}",
-                                              height=60)
-            
-            referidos.append({
-                'nombre': nombre_ref,
-                'edad': edad_ref,
-                'parentesco': parentesco_ref,
-                'comentarios': comentarios_ref
-            })
-            
-            st.markdown("---")
-        
+
+    # ── Solo el botón en el form ──────────────────────────────────────────────
+    with st.form("form_cierre"):
         col1, col2 = st.columns(2)
         with col1:
             if st.form_submit_button("⬅️ Anterior", use_container_width=True):
                 navegar_a_paso(8)
         with col2:
             submitted = st.form_submit_button("✅ Finalizar Asesoría", type="primary", use_container_width=True)
-        
+
         if submitted:
             if not satisfaccion.strip():
                 st.error("❌ Por favor comparte tu experiencia con la asesoría")
@@ -2424,14 +2412,9 @@ elif st.session_state.step == 9:
                 # Mostrar resumen final
                 st.markdown("---")
                 st.subheader("📊 Resumen Final")
-                
+
                 necesidades = detectar_necesidades()
-                
-                # Mostrar gráfico
-                grafico_buffer = generar_graficos_necesidades()
-                if grafico_buffer:
-                    st.image(grafico_buffer, use_container_width=True)
-                
+
                 st.write(f"""
                 **Cliente:** {st.session_state.datos['datos_generales'].get('nombre')}
                 
@@ -2455,24 +2438,12 @@ elif st.session_state.step == 9:
     # BOTONES DE DESCARGA FUERA DEL FORMULARIO
     # Solo mostrar si ya se completó la asesoría
     if st.session_state.step == 9 and st.session_state.datos['cierre'].get('satisfaccion'):
-        # Botones de exportar
         st.markdown("---")
         st.subheader("💾 Descargar Reporte")
-        
-        col1, col2, col3, col4 = st.columns(4)
-        
+
+        col1, col2 = st.columns(2)
+
         with col1:
-            json_data = exportar_json()
-            st.download_button(
-                label="📄 Descargar JSON",
-                data=json_data,
-                file_name=f"asesoria_{st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.json",
-                mime="application/json",
-                use_container_width=True,
-                key="download_json_final"
-            )
-        
-        with col2:
             pdf_buffer = generar_pdf_asesoria_mejorado(st.session_state.datos)
             if pdf_buffer:
                 st.download_button(
@@ -2483,20 +2454,8 @@ elif st.session_state.step == 9:
                     use_container_width=True,
                     key="download_pdf_final"
                 )
-        
-        with col3:
-            grafico_buffer = generar_graficos_necesidades()
-            if grafico_buffer:
-                st.download_button(
-                    label="📊 Descargar Gráfico",
-                    data=grafico_buffer,
-                    file_name=f"grafico_necesidades_{datetime.now().strftime('%Y%m%d')}.png",
-                    mime="image/png",
-                    use_container_width=True,
-                    key="download_grafico_final"
-                )
 
-        with col4:
+        with col2:
             with st.spinner("Preparando Excel..."):
                 excel_buffer = generar_excel_seguimiento(st.session_state.datos)
             nombre_cliente = st.session_state.datos['datos_generales'].get('nombre', 'cliente').replace(' ', '_')
